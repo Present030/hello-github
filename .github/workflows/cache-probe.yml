@@ -9,6 +9,12 @@ permissions:
   contents: read
   issues: write
 
+# Cache is not a transactional store. Serialize this probe so two runs cannot
+# restore the same counter value and then both publish the same next value.
+concurrency:
+  group: cache-probe-counter
+  cancel-in-progress: false
+
 jobs:
   cache-probe:
     cache-mode: write
