@@ -20,6 +20,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Print reproducibility diagnostics
+        run: python -c "import hashlib, pathlib, zlib; p=pathlib.Path('hello_github/__main__.py').read_bytes(); print('SOURCE_SHA256='+hashlib.sha256(p).hexdigest()); print('CRLF_COUNT='+str(p.count(b'\\r\\n'))); print('LF_COUNT='+str(p.count(b'\\n'))); print('ZLIB_COMPILED='+zlib.ZLIB_VERSION); print('ZLIB_RUNTIME='+zlib.ZLIB_RUNTIME_VERSION)"
       - name: Verify reproducible zipapp
         shell: bash
         run: |
@@ -53,6 +55,8 @@ jobs:
           python-version: "3.13"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Print reproducibility diagnostics
+        run: python -c "import hashlib, pathlib, zlib; p=pathlib.Path('hello_github/__main__.py').read_bytes(); print('SOURCE_SHA256='+hashlib.sha256(p).hexdigest()); print('CRLF_COUNT='+str(p.count(b'\\r\\n'))); print('LF_COUNT='+str(p.count(b'\\n'))); print('ZLIB_COMPILED='+zlib.ZLIB_VERSION); print('ZLIB_RUNTIME='+zlib.ZLIB_RUNTIME_VERSION)"
       - name: Build zipapp twice
         run: |
           python tools/build_zipapp.py --output dist/hello-github-a.pyz
