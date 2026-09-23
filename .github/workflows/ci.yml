@@ -28,6 +28,7 @@ jobs:
           python tools/build_zipapp.py --output dist/hello-github-b.pyz
           cmp dist/hello-github-a.pyz dist/hello-github-b.pyz
           python dist/hello-github-a.pyz --json > zipapp-runtime-report.json
+          python -c "import hashlib, pathlib; print('ZIPAPP_SHA256=' + hashlib.sha256(pathlib.Path('dist/hello-github-a.pyz').read_bytes()).hexdigest())"
       - name: Generate runtime report
         run: python -m hello_github --json > runtime-report.json
       - name: Verify source and zipapp reports match
@@ -37,3 +38,32 @@ jobs:
         with:
           name: runtime-report-py${{ matrix.python-version }}
           path: runtime-report.json
+
+  portable:
+    name: portable (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Build zipapp twice
+        run: |
+          python tools/build_zipapp.py --output dist/hello-github-a.pyz
+          python tools/build_zipapp.py --output dist/hello-github-b.pyz
+      - name: Verify deterministic bytes
+        run: python -c "from pathlib import Path; assert Path('dist/hello-github-a.pyz').read_bytes() == Path('dist/hello-github-b.pyz').read_bytes()"
+      - name: Run zipapp
+        run: python dist/hello-github-a.pyz --json > zipapp-runtime-report.json
+      - name: Generate source report
+        run: python -m hello_github --json > runtime-report.json
+      - name: Verify source and zipapp reports match
+        run: python -c "from pathlib import Path; assert Path('runtime-report.json').read_bytes() == Path('zipapp-runtime-report.json').read_bytes()"
+      - name: Print zipapp SHA256
+        run: python -c "import hashlib, pathlib; print('ZIPAPP_SHA256=' + hashlib.sha256(pathlib.Path('dist/hello-github-a.pyz').read_bytes()).hexdigest())"
