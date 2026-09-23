@@ -34,4 +34,6 @@ GitHub Actions runs the unit tests on Python 3.11, 3.12, and 3.13. Each matrix j
 
 ## Current experiment status
 
-The initial capability pass verified repository reads/writes, branches, commits, pull requests, issues, CI execution, CI logs, and merges. The next pass adds a tested Python project and artifact round-trip.
+The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, and artifact download back into a ChatGPT execution environment.
+
+See `PROJECT_STATE.md` for the durable handoff notes and known boundaries.
