@@ -1,0 +1,91 @@
+name: health-check
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/health-check.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Verify source, build, and Release agree
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v$version"
+
+          test "$(python -m hello_github --version)" = "$version"
+          python -m unittest discover -s tests -v
+
+          mkdir -p rebuilt release
+          python tools/build_zipapp.py --output rebuilt/hello-github.pyz
+          test "$(python rebuilt/hello-github.pyz --version)" = "$version"
+
+          latest_tag="$(gh release list             --repo "$GITHUB_REPOSITORY"             --limit 1             --json tagName             --jq '.[0].tagName')"
+          test "$latest_tag" = "$tag"
+
+          gh release download "$tag"             --repo "$GITHUB_REPOSITORY"             --pattern "hello-github.pyz"             --dir release
+
+          test "$(python release/hello-github.pyz --version)" = "$version"
+          cmp rebuilt/hello-github.pyz release/hello-github.pyz
+
+          python release/hello-github.pyz --json > released-runtime.json
+          VERSION_EXPECTED="$version" python -c "import json, os; r=json.load(open('released-runtime.json', encoding='utf-8')); assert r['version'] == os.environ['VERSION_EXPECTED']"
+
+          echo "PASS: source, rebuilt artifact, and latest Release agree at $tag"
+
+      - name: Open or update health-check failure Issue
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          title="[health-check-failure]"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          body="$(printf 'The unattended repository health check failed.\n\n- run: %s\n- commit: %s\n\nCheck the failed Actions step for the exact drift or runtime error.' "$run_url" "$GITHUB_SHA")"
+
+          existing="$(gh issue list             --repo "$GITHUB_REPOSITORY"             --state open             --search 'in:title [health-check-failure]'             --json number,title             --jq '.[] | select(.title == "[health-check-failure]") | .number'             | head -n 1)"
+
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
+
+      - name: Close recovered health-check Issue
+        if: ${{ success() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          existing="$(gh issue list             --repo "$GITHUB_REPOSITORY"             --state open             --search 'in:title [health-check-failure]'             --json number,title             --jq '.[] | select(.title == "[health-check-failure]") | .number'             | head -n 1)"
+
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing"               --repo "$GITHUB_REPOSITORY"               --body "Health check recovered successfully in $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+            gh issue close "$existing" --repo "$GITHUB_REPOSITORY" --reason completed
+          fi
