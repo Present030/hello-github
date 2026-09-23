@@ -16,6 +16,21 @@ class SchemaTests(unittest.TestCase):
         }
         self.assertEqual(missing_report_fields(report), [])
 
+    def test_repeated_calls_do_not_share_mutable_state(self) -> None:
+        complete = {
+            "message": "ok",
+            "python": "3.13.15",
+            "implementation": "CPython",
+            "system": "Linux",
+            "machine": "x86_64",
+        }
+        partial = {"message": "ok"}
+        expected = ["python", "implementation", "system", "machine"]
+
+        self.assertEqual(missing_report_fields(complete), [])
+        self.assertEqual(missing_report_fields(partial), expected)
+        self.assertEqual(missing_report_fields(partial), expected)
+
 
 if __name__ == "__main__":
     unittest.main()
