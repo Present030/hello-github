@@ -21,8 +21,10 @@ This repository is a durable coordination point for experiments where ChatGPT re
 - Upload runtime-report artifacts from GitHub Actions.
 - Download an Actions artifact back into a ChatGPT execution environment and inspect its contents.
 - Verify that merged PR branches are deleted automatically; deletion is asynchronous and may lag the merge by a few seconds.
-- Create a VERSION-driven GitHub Release from Actions. Release `v0.1.0` was created successfully at commit `0f4b9a923f7ff95d0491d31f130b832daab50e0e`.
+- Create VERSION-driven GitHub Releases from Actions.
 - Publish `runtime-report.json` and `release-manifest.txt` as Release assets and read their metadata, sizes, and SHA-256 digests through the connector.
+- Verify Release assets end to end inside GitHub Actions by downloading the published assets and comparing them byte-for-byte with the files generated before publication.
+- Release `v0.1.1` was published successfully from commit `79db05344ad606be6d8be6f39b8c2533bf0a88e5`; the workflow logged `PASS: release assets round-trip byte-for-byte`.
 
 ## Observed boundaries
 
@@ -31,7 +33,7 @@ This repository is a durable coordination point for experiments where ChatGPT re
 - The connector surface used in this experiment did not expose a direct branch-delete operation.
 - Repository setting `delete_branch_on_merge` is enabled and has been verified as the replacement for a connector delete-ref operation.
 - GitHub code search can lag behind writes when the repository has not yet been indexed; exact file reads remain reliable.
-- For this private repository, Release metadata and asset digests are readable, but attempting to fetch a private Release asset directly through its `browser_download_url` returned 404 with the current connector surface. Actions artifacts remain directly downloadable through the dedicated connector action.
+- For this private repository, Release metadata and asset digests are readable, but attempting to fetch a private Release asset directly through its `browser_download_url` returned 404 with the current connector surface. The Release workflow therefore performs its own authenticated download-and-compare verification; Actions artifacts remain directly downloadable through the dedicated connector action.
 
 ## Cold-start recovery
 
@@ -66,7 +68,9 @@ merge
       ↓
 GitHub deletes merged head branch
       ↓
-VERSION change can publish a durable GitHub Release
+VERSION change publishes a durable GitHub Release
+      ↓
+Release workflow downloads its own assets and verifies them byte-for-byte
 ```
 
 The GitHub repository is the source of truth. Temporary sandbox files are disposable and should not be treated as persistent project state.
