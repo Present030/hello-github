@@ -114,8 +114,9 @@ def audit_state(root: Path, release: dict[str, Any]) -> list[str]:
             action_uses += 1
             action_name, ref = match.groups()
             if FULL_SHA_RE.fullmatch(ref) is None:
+                relative = workflow.relative_to(root).as_posix()
                 errors.append(
-                    f"{workflow.relative_to(root)} uses unpinned {action_name}@{ref}"
+                    f"{relative} uses unpinned {action_name}@{ref}"
                 )
 
     if action_uses == 0:
