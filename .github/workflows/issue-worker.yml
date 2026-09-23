@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   workspace-probe:
-    if: ${{ github.event.issue.title == '[workspace-probe]' && github.actor == github.repository_owner }}
+    if: ${{ github.actor == github.repository_owner && (github.event.issue.title == '[workspace-probe]' || github.event.issue.title == '[workspace-probe-fail]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,44 +20,103 @@ jobs:
           python-version: "3.13"
 
       - name: Run tests
+        id: tests
+        continue-on-error: true
         run: python -m unittest discover -s tests -v
 
-      - name: Generate issue result
+      - name: Run controlled probe contract
+        id: probe
+        continue-on-error: true
         shell: bash
+        env:
+          TASK_TITLE: ${{ github.event.issue.title }}
         run: |
           set -euo pipefail
-          python -m hello_github --json > runtime-report.json
+          if [[ "$TASK_TITLE" == "[workspace-probe-fail]" ]]; then
+            echo "Intentional failure probe requested."
+            exit 23
+          fi
+          echo "Probe contract passed."
+
+      - name: Generate runtime report
+        id: report
+        continue-on-error: true
+        run: python -m hello_github --json > runtime-report.json
+
+      - name: Build issue result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          REPORT_OUTCOME: ${{ steps.report.outcome }}
+        run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          report = json.loads(Path("runtime-report.json").read_text(encoding="utf-8"))
+          report_path = Path("runtime-report.json")
+          report = None
+          if report_path.exists():
+              try:
+                  report = json.loads(report_path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  report = {"error": f"runtime report parse failed: {exc}"}
+
+          test_outcome = os.environ["TEST_OUTCOME"]
+          probe_outcome = os.environ["PROBE_OUTCOME"]
+          report_outcome = os.environ["REPORT_OUTCOME"]
+          success = all(value == "success" for value in (test_outcome, probe_outcome, report_outcome))
+
           lines = [
               "## Workspace probe result",
               "",
               f"- commit: `{os.environ['GITHUB_SHA']}`",
               f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests: `{test_outcome}`",
+              f"- probe: `{probe_outcome}`",
+              f"- runtime report: `{report_outcome}`",
+              f"- overall: `{'success' if success else 'failure'}`",
               "",
-              "```json",
-              json.dumps(report, indent=2, sort_keys=True),
-              "```",
-              "",
-              "The issue body is intentionally ignored; this workflow does not execute user-supplied commands.",
           ]
+
+          if report is not None:
+              lines.extend([
+                  "```json",
+                  json.dumps(report, indent=2, sort_keys=True),
+                  "```",
+                  "",
+              ])
+
+          lines.extend([
+              "The issue body is intentionally ignored; this workflow does not execute user-supplied commands.",
+              "",
+              "Successful probes are closed automatically. Failed probes remain open for diagnosis.",
+          ])
           Path("issue-result.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
       - name: Post result
+        id: post
+        if: ${{ always() }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: gh issue comment "$ISSUE_NUMBER" --body-file issue-result.md
 
-      - name: Close task issue
+      - name: Close successful task issue
+        if: ${{ steps.tests.outcome == 'success' && steps.probe.outcome == 'success' && steps.report.outcome == 'success' && steps.post.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: gh issue close "$ISSUE_NUMBER" --reason completed
+
+      - name: Enforce task failure
+        if: ${{ always() && (steps.tests.outcome != 'success' || steps.probe.outcome != 'success' || steps.report.outcome != 'success' || steps.post.outcome != 'success') }}
+        run: |
+          echo "Workspace probe failed; see the Issue comment for details."
+          exit 1

@@ -43,18 +43,14 @@ After publication, the workflow downloads those assets again and verifies them b
 
 ## Issue-driven remote probe
 
-Opening an Issue with the exact title `[workspace-probe]` triggers a controlled GitHub Actions task, but only when the Issue actor is the repository owner. The workflow:
+Opening an Issue with the exact title `[workspace-probe]` triggers a controlled GitHub Actions task, but only when the Issue actor is the repository owner. The workflow runs the tests, executes the fixed runtime probe, posts a structured result back to the Issue, and closes the Issue on success.
 
-1. checks out the repository,
-2. runs the test suite,
-3. executes the fixed runtime probe,
-4. posts the JSON result back to the Issue,
-5. closes the Issue.
+For failure-path diagnostics, `[workspace-probe-fail]` runs the same controlled task but deliberately fails the probe contract after the tests. The workflow still posts a structured failure result, leaves the Issue open for diagnosis, and marks the Actions run as failed.
 
 The Issue body is deliberately ignored and is never executed as shell input. This provides a safe event-driven bridge without exposing arbitrary remote command execution.
 
 ## Current experiment status
 
-The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, automatic deletion of merged PR branches, durable GitHub Releases, and Release asset round-trip verification. The latest verified release is `v0.1.1`.
+The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, automatic deletion of merged PR branches, durable GitHub Releases, Release asset round-trip verification, and an Issue-triggered remote probe. The latest verified release is `v0.1.1`.
 
 See `PROJECT_STATE.md` for the durable handoff notes and known boundaries.
