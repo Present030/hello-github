@@ -45,14 +45,27 @@ jobs:
             sha256sum runtime-report.json
           } > release-manifest.txt
 
-      - name: Create GitHub release
+      - name: Create or reuse GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists; nothing to do."
-            exit 0
+            echo "Release $RELEASE_TAG already exists; reusing it for verification."
+          else
+            gh release create "$RELEASE_TAG" runtime-report.json release-manifest.txt --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "Persistent Workspace Lab release $RELEASE_TAG"
           fi
-          gh release create "$RELEASE_TAG" runtime-report.json release-manifest.txt --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "Persistent Workspace Lab release $RELEASE_TAG"
+
+      - name: Verify release assets round-trip
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf verify-release
+          mkdir verify-release
+          gh release download "$RELEASE_TAG" --dir verify-release
+          cmp runtime-report.json verify-release/runtime-report.json
+          cmp release-manifest.txt verify-release/release-manifest.txt
+          echo "PASS: release assets round-trip byte-for-byte"
