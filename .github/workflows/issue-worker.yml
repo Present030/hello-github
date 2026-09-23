@@ -1,0 +1,63 @@
+name: issue-worker
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  workspace-probe:
+    if: ${{ github.event.issue.title == '[workspace-probe]' && github.actor == github.repository_owner }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Generate issue result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m hello_github --json > runtime-report.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path("runtime-report.json").read_text(encoding="utf-8"))
+          lines = [
+              "## Workspace probe result",
+              "",
+              f"- commit: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              "",
+              "```json",
+              json.dumps(report, indent=2, sort_keys=True),
+              "```",
+              "",
+              "The issue body is intentionally ignored; this workflow does not execute user-supplied commands.",
+          ]
+          Path("issue-result.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Post result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --body-file issue-result.md
+
+      - name: Close task issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --reason completed

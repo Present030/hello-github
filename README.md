@@ -41,6 +41,18 @@ GitHub Actions runs the unit tests on Python 3.11, 3.12, and 3.13. Each matrix j
 
 After publication, the workflow downloads those assets again and verifies them byte-for-byte against the generated originals. Actions artifacts remain useful for CI diagnostics; GitHub Releases are the durable delivery surface.
 
+## Issue-driven remote probe
+
+Opening an Issue with the exact title `[workspace-probe]` triggers a controlled GitHub Actions task, but only when the Issue actor is the repository owner. The workflow:
+
+1. checks out the repository,
+2. runs the test suite,
+3. executes the fixed runtime probe,
+4. posts the JSON result back to the Issue,
+5. closes the Issue.
+
+The Issue body is deliberately ignored and is never executed as shell input. This provides a safe event-driven bridge without exposing arbitrary remote command execution.
+
 ## Current experiment status
 
 The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, automatic deletion of merged PR branches, durable GitHub Releases, and Release asset round-trip verification. The latest verified release is `v0.1.1`.
