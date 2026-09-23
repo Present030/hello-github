@@ -25,7 +25,8 @@ This repository is a durable coordination point for experiments where ChatGPT re
 
 - The temporary ChatGPT Linux sandbox used during this experiment did not have direct outbound DNS/HTTPS access to GitHub.
 - GitHub access therefore came through the authorized GitHub connector rather than ordinary `git clone` / `git push` from the sandbox.
-- The connector surface used in this experiment did not expose a direct branch-delete operation, so merged test branches may remain until cleaned up elsewhere.
+- The connector surface used in this experiment did not expose a direct branch-delete operation.
+- Repository setting `delete_branch_on_merge` is enabled so GitHub can clean up merged PR branches without a connector delete-ref operation.
 - GitHub code search can lag behind writes when the repository has not yet been indexed; exact file reads remain reliable.
 
 ## Durable workflow
@@ -44,6 +45,8 @@ read status / logs / artifacts
 repair if needed
       ↓
 merge
+      ↓
+GitHub deletes merged head branch
 ```
 
 The GitHub repository is the source of truth. Temporary sandbox files are disposable and should not be treated as persistent project state.
