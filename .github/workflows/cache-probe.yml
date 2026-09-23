@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Restore previous probe state
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache-probe
           key: workspace-counter-${{ github.run_id }}
