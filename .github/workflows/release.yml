@@ -34,15 +34,25 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Build release reports
+      - name: Build reproducible zipapp
         shell: bash
         run: |
           set -euo pipefail
-          python -m hello_github --json > runtime-report.json
+          python tools/build_zipapp.py --output dist/hello-github.pyz
+          python tools/build_zipapp.py --output dist/hello-github-rebuild.pyz
+          cmp dist/hello-github.pyz dist/hello-github-rebuild.pyz
+          rm dist/hello-github-rebuild.pyz
+          python dist/hello-github.pyz --json > runtime-report.json
+
+      - name: Build release manifest
+        shell: bash
+        run: |
+          set -euo pipefail
           {
             echo "tag=$RELEASE_TAG"
             echo "commit=$GITHUB_SHA"
             sha256sum runtime-report.json
+            sha256sum dist/hello-github.pyz
           } > release-manifest.txt
 
       - name: Create or reuse GitHub release
@@ -54,7 +64,7 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists; reusing it for verification."
           else
-            gh release create "$RELEASE_TAG" runtime-report.json release-manifest.txt --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "Persistent Workspace Lab release $RELEASE_TAG"
+            gh release create "$RELEASE_TAG"               runtime-report.json               release-manifest.txt               dist/hello-github.pyz               --target "$GITHUB_SHA"               --title "$RELEASE_TAG"               --notes "Persistent Workspace Lab release $RELEASE_TAG"
           fi
 
       - name: Verify release assets round-trip
@@ -68,4 +78,7 @@ jobs:
           gh release download "$RELEASE_TAG" --dir verify-release
           cmp runtime-report.json verify-release/runtime-report.json
           cmp release-manifest.txt verify-release/release-manifest.txt
-          echo "PASS: release assets round-trip byte-for-byte"
+          cmp dist/hello-github.pyz verify-release/hello-github.pyz
+          python verify-release/hello-github.pyz --json > downloaded-runtime-report.json
+          cmp runtime-report.json downloaded-runtime-report.json
+          echo "PASS: release assets and runnable zipapp round-trip byte-for-byte"
