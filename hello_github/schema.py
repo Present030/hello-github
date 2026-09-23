@@ -4,6 +4,7 @@ from __future__ import annotations
 
 REQUIRED_REPORT_FIELDS = (
     "message",
+    "version",
     "python",
     "implementation",
     "system",
