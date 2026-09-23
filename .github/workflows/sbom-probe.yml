@@ -1,0 +1,90 @@
+name: sbom-probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sbom-probe.yml
+      - tools/build_sbom.py
+      - tests/test_sbom.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: v0.2.1
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Download published zipapp and Release metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh release download "$RELEASE_TAG"             --repo "$GITHUB_REPOSITORY"             --pattern "hello-github.pyz"             --dir release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > release.json
+
+      - name: Generate deterministic CycloneDX SBOM twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python release/hello-github.pyz --version)"
+          python tools/build_sbom.py             --artifact release/hello-github.pyz             --version "$version"             --output hello-github.cdx.json
+          python tools/build_sbom.py             --artifact release/hello-github.pyz             --version "$version"             --output hello-github-second.cdx.json
+          cmp hello-github.cdx.json hello-github-second.cdx.json
+
+      - name: Verify SBOM against Release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          artifact = Path("release/hello-github.pyz")
+          sbom = json.loads(Path("hello-github.cdx.json").read_text(encoding="utf-8"))
+          release = json.loads(Path("release.json").read_text(encoding="utf-8"))
+
+          component = sbom["metadata"]["component"]
+          assets = {asset["name"]: asset for asset in release["assets"]}
+          release_digest = assets["hello-github.pyz"]["digest"].removeprefix("sha256:")
+          actual_digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+          sbom_digest = component["hashes"][0]["content"]
+          release_version = release["tag_name"].removeprefix("v")
+
+          assert sbom["bomFormat"] == "CycloneDX"
+          assert sbom["specVersion"] == "1.6"
+          assert component["version"] == release_version
+          assert component["purl"] == f"pkg:generic/hello-github@{release_version}"
+          assert actual_digest == release_digest == sbom_digest
+          assert component["properties"] == [
+              {
+                  "name": "hello-github:runtime-dependencies",
+                  "value": "python-standard-library-only",
+              }
+          ]
+          assert sbom["components"] == []
+
+          print(f"PASS: SBOM describes {release['tag_name']} exactly")
+          print(f"ARTIFACT_SHA256={actual_digest}")
+          PY
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sbom-v0.2.1
+          path: hello-github.cdx.json
