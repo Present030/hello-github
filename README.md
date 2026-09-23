@@ -39,10 +39,10 @@ GitHub Actions runs the unit tests on Python 3.11, 3.12, and 3.13. Each matrix j
 - `runtime-report.json`
 - `release-manifest.txt`
 
-Actions artifacts remain useful for CI diagnostics; GitHub Releases are the durable delivery surface.
+After publication, the workflow downloads those assets again and verifies them byte-for-byte against the generated originals. Actions artifacts remain useful for CI diagnostics; GitHub Releases are the durable delivery surface.
 
 ## Current experiment status
 
-The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, and automatic deletion of merged PR branches.
+The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, automatic deletion of merged PR branches, durable GitHub Releases, and Release asset round-trip verification. The latest verified release is `v0.1.1`.
 
 See `PROJECT_STATE.md` for the durable handoff notes and known boundaries.
