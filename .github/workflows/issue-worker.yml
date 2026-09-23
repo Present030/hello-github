@@ -120,3 +120,111 @@ jobs:
         run: |
           echo "Workspace probe failed; see the Issue comment for details."
           exit 1
+
+  network-probe:
+    if: ${{ github.actor == github.repository_owner && github.event.issue.title == '[network-probe]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run fixed network probe
+        id: network
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import socket
+          import urllib.request
+          from pathlib import Path
+
+          host = "example.com"
+          target = "https://example.com/"
+          result = {
+              "host": host,
+              "target": target,
+              "dns_addresses": [],
+              "http_status": None,
+              "ok": False,
+          }
+
+          try:
+              result["dns_addresses"] = sorted(
+                  {entry[4][0] for entry in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)}
+              )
+              request = urllib.request.Request(
+                  target,
+                  method="HEAD",
+                  headers={"User-Agent": "hello-github-network-probe/1"},
+              )
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  result["http_status"] = response.status
+              result["ok"] = 200 <= int(result["http_status"]) < 400
+          except Exception as exc:
+              result["error"] = f"{type(exc).__name__}: {exc}"
+
+          Path("network-report.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          raise SystemExit(0 if result["ok"] else 1)
+          PY
+
+      - name: Build network result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          NETWORK_OUTCOME: ${{ steps.network.outcome }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("network-report.json")
+          report = {"error": "network-report.json was not produced"}
+          if path.exists():
+              report = json.loads(path.read_text(encoding="utf-8"))
+
+          lines = [
+              "## Network probe result",
+              "",
+              f"- commit: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- network step: `{os.environ['NETWORK_OUTCOME']}`",
+              "",
+              "```json",
+              json.dumps(report, indent=2, sort_keys=True),
+              "```",
+              "",
+              "The target is fixed in the workflow. The issue body is ignored and cannot supply a URL or command.",
+          ]
+          Path("network-result.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Post network result
+        id: post
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --body-file network-result.md
+
+      - name: Close successful network probe
+        if: ${{ steps.network.outcome == 'success' && steps.post.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --reason completed
+
+      - name: Enforce network probe failure
+        if: ${{ always() && (steps.network.outcome != 'success' || steps.post.outcome != 'success') }}
+        run: |
+          echo "Network probe failed; see the Issue comment for details."
+          exit 1
