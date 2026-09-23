@@ -32,8 +32,17 @@ python -m unittest discover -s tests -v
 
 GitHub Actions runs the unit tests on Python 3.11, 3.12, and 3.13. Each matrix job also uploads a small runtime report artifact. That artifact lets a later ChatGPT session inspect the result of code executed outside its temporary sandbox.
 
+## Releases
+
+`VERSION` is the release source of truth. When it changes on `main`, the release workflow validates the version, runs the tests, creates tag `v<version>`, publishes a GitHub Release, and attaches:
+
+- `runtime-report.json`
+- `release-manifest.txt`
+
+Actions artifacts remain useful for CI diagnostics; GitHub Releases are the durable delivery surface.
+
 ## Current experiment status
 
-The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, and artifact download back into a ChatGPT execution environment.
+The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, and automatic deletion of merged PR branches.
 
 See `PROJECT_STATE.md` for the durable handoff notes and known boundaries.
