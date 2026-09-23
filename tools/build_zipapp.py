@@ -32,7 +32,9 @@ def build_zipapp(output: Path) -> Path:
         _write_member(archive, "__main__.py", ENTRYPOINT)
         for source in sorted(PACKAGE_ROOT.rglob("*.py")):
             relative = source.relative_to(ROOT).as_posix()
-            _write_member(archive, relative, source.read_bytes())
+            with source.open("r", encoding="utf-8", newline=None) as stream:
+                normalized = stream.read().encode("utf-8")
+            _write_member(archive, relative, normalized)
 
     return output
 
