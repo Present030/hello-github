@@ -29,12 +29,13 @@ jobs:
             echo "VERSION must be semantic version X.Y.Z; got: $version" >&2
             exit 1
           fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
 
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-      - name: Build reproducible zipapp
+      - name: Build reproducible versioned zipapp
         shell: bash
         run: |
           set -euo pipefail
@@ -42,7 +43,10 @@ jobs:
           python tools/build_zipapp.py --output dist/hello-github-rebuild.pyz
           cmp dist/hello-github.pyz dist/hello-github-rebuild.pyz
           rm dist/hello-github-rebuild.pyz
+          python dist/hello-github.pyz --version > artifact-version.txt
+          test "$(cat artifact-version.txt)" = "$RELEASE_VERSION"
           python dist/hello-github.pyz --json > runtime-report.json
+          python -c "import json, os; report=json.load(open('runtime-report.json', encoding='utf-8')); assert report['version'] == os.environ['RELEASE_VERSION'], report"
 
       - name: Build release manifest
         shell: bash
@@ -50,6 +54,7 @@ jobs:
           set -euo pipefail
           {
             echo "tag=$RELEASE_TAG"
+            echo "version=$RELEASE_VERSION"
             echo "commit=$GITHUB_SHA"
             sha256sum runtime-report.json
             sha256sum dist/hello-github.pyz
@@ -64,7 +69,7 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists; reusing it for verification."
           else
-            gh release create "$RELEASE_TAG"               runtime-report.json               release-manifest.txt               dist/hello-github.pyz               --target "$GITHUB_SHA"               --title "$RELEASE_TAG"               --notes "Persistent Workspace Lab release $RELEASE_TAG"
+            gh release create "$RELEASE_TAG" runtime-report.json release-manifest.txt dist/hello-github.pyz --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "Persistent Workspace Lab release $RELEASE_TAG"
           fi
 
       - name: Verify release assets round-trip
@@ -79,6 +84,8 @@ jobs:
           cmp runtime-report.json verify-release/runtime-report.json
           cmp release-manifest.txt verify-release/release-manifest.txt
           cmp dist/hello-github.pyz verify-release/hello-github.pyz
+          python verify-release/hello-github.pyz --version > downloaded-version.txt
+          test "$(cat downloaded-version.txt)" = "$RELEASE_VERSION"
           python verify-release/hello-github.pyz --json > downloaded-runtime-report.json
           cmp runtime-report.json downloaded-runtime-report.json
-          echo "PASS: release assets and runnable zipapp round-trip byte-for-byte"
+          echo "PASS: release tag, embedded version, assets, and runnable zipapp all agree"

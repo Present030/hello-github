@@ -1,3 +1,7 @@
 """Small package used to exercise a persistent GitHub-backed workspace."""
 
-__version__ = "0.1.0"
+from .version import get_version
+
+__version__ = get_version()
+
+__all__ = ["__version__", "get_version"]

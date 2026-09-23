@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 
+from hello_github import __version__
 from hello_github.report import MESSAGE
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +15,7 @@ BUILDER = ROOT / "tools" / "build_zipapp.py"
 
 
 class ZipappTests(unittest.TestCase):
-    def test_build_is_reproducible_and_runnable(self) -> None:
+    def test_build_is_reproducible_runnable_and_versioned(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             first = tmp_path / "first.pyz"
@@ -42,8 +43,18 @@ class ZipappTests(unittest.TestCase):
             )
             report = json.loads(completed.stdout)
             self.assertEqual(report["message"], MESSAGE)
+            self.assertEqual(report["version"], __version__)
             self.assertTrue(report["python"])
             self.assertTrue(report["system"])
+
+            version = subprocess.run(
+                [sys.executable, str(first), "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=tmp_path,
+            )
+            self.assertEqual(version.stdout.strip(), __version__)
 
 
 if __name__ == "__main__":
