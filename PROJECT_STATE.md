@@ -217,6 +217,7 @@ CI and probe workflows have successfully executed after this pinning.
 - Repository rulesets on this private repository returned GitHub's `403` message that GitHub Pro is required or the repository must be public.
 - Required-status-check enforcement is therefore not currently a server-side merge gate. CI-before-merge remains an explicit project convention.
 - GitHub does not permit the PR author to self-approve.
+- Native GitHub Artifact Attestations for private/internal repositories require GitHub Enterprise Cloud. In the current private-repository/account setup, native attestation/provenance is therefore unavailable without changing the plan or making the repository public.
 
 ## Cold-start recovery
 
