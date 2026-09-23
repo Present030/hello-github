@@ -49,6 +49,8 @@ For failure-path diagnostics, `[workspace-probe-fail]` runs the same controlled 
 
 The Issue body is deliberately ignored and is never executed as shell input. This provides a safe event-driven bridge without exposing arbitrary remote command execution.
 
+Opening `[network-probe]` runs a separate fixed-target connectivity check against `https://example.com/`. The URL is hard-coded in the workflow; Issue content cannot choose the destination. The result reports DNS addresses and HTTP status back to the Issue.
+
 ## Current experiment status
 
 The end-to-end path has been verified: repository mutation, low-level Git object writes, pull requests, an observed CI failure, log-based diagnosis, a corrective commit, matrix CI success, artifact creation, artifact download back into a ChatGPT execution environment, automatic deletion of merged PR branches, durable GitHub Releases, Release asset round-trip verification, and an Issue-triggered remote probe. The latest verified release is `v0.1.1`.
