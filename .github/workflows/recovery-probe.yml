@@ -1,0 +1,82 @@
+name: recovery-probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recovery-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RECOVERY_TAG: v0.2.1
+  RECOVERY_VERSION: 0.2.1
+  EXPECTED_ZIPAPP_SHA256: 9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45
+
+jobs:
+  recover:
+    name: recover (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout historical release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RECOVERY_TAG }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Download the original Release zipapp
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh release download "$RECOVERY_TAG"             --repo "$GITHUB_REPOSITORY"             --pattern "hello-github.pyz"             --dir release
+
+      - name: Execute the original Release zipapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python release/hello-github.pyz --version)" = "$RECOVERY_VERSION"
+          python release/hello-github.pyz --json > release-runtime.json
+          python -c "import json, os; r=json.load(open('release-runtime.json', encoding='utf-8')); assert r['version'] == os.environ['RECOVERY_VERSION'], r"
+
+      - name: Rebuild from the historical tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rebuilt
+          python tools/build_zipapp.py --output rebuilt/hello-github.pyz
+          test "$(python rebuilt/hello-github.pyz --version)" = "$RECOVERY_VERSION"
+
+      - name: Verify byte-for-byte recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          released = Path("release/hello-github.pyz").read_bytes()
+          rebuilt = Path("rebuilt/hello-github.pyz").read_bytes()
+
+          assert released == rebuilt, "rebuilt zipapp differs from the historical Release asset"
+          digest = hashlib.sha256(rebuilt).hexdigest()
+          expected = os.environ["EXPECTED_ZIPAPP_SHA256"]
+          assert digest == expected, (digest, expected)
+
+          print(f"PASS: {os.environ['RECOVERY_TAG']} recovered byte-for-byte")
+          print(f"SHA256={digest}")
+          PY
