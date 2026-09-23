@@ -51,7 +51,7 @@ jobs:
           cmp rebuilt/hello-github.pyz release/hello-github.pyz
 
           python release/hello-github.pyz --json > released-runtime.json
-          python -c "import json, os; r=json.load(open('released-runtime.json', encoding='utf-8')); assert r['version'] == os.environ['VERSION_EXPECTED']"             VERSION_EXPECTED="$version"
+          VERSION_EXPECTED="$version" python -c "import json, os; r=json.load(open('released-runtime.json', encoding='utf-8')); assert r['version'] == os.environ['VERSION_EXPECTED']"
 
           echo "PASS: source, rebuilt artifact, and latest Release agree at $tag"
 
@@ -65,12 +65,7 @@ jobs:
 
           title="[health-check-failure]"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          body="The unattended repository health check failed.
-
-          - run: $run_url
-          - commit: `$GITHUB_SHA`
-
-          Check the failed Actions step for the exact drift or runtime error."
+          body="$(printf 'The unattended repository health check failed.\n\n- run: %s\n- commit: %s\n\nCheck the failed Actions step for the exact drift or runtime error.' "$run_url" "$GITHUB_SHA")"
 
           existing="$(gh issue list             --repo "$GITHUB_REPOSITORY"             --state open             --search 'in:title [health-check-failure]'             --json number,title             --jq '.[] | select(.title == "[health-check-failure]") | .number'             | head -n 1)"
 
