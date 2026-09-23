@@ -1,64 +1,128 @@
 # Hello GitHub — Persistent Workspace Lab
 
-This repository is a small experiment in using GitHub as the durable state for an otherwise ephemeral ChatGPT execution environment.
+This private repository is an experiment in using GitHub as the durable state and execution/control plane for an otherwise ephemeral ChatGPT working environment.
 
-## Why it exists
-
-The ChatGPT sandbox can run code, but its filesystem is temporary and it does not have direct outbound access to GitHub. The durable workflow tested here is therefore:
+## Architecture
 
 ```text
 ChatGPT reasoning
     ↕
 GitHub connector
     ↕
-repository / branches / pull requests
+repository / branches / pull requests / issues / releases
     ↕
 GitHub Actions
     ↕
-CI logs and artifacts
+CI / networked execution / cache / artifacts
 ```
 
-The repository is intentionally dependency-free so the experiment tests the collaboration path rather than package installation.
+The ChatGPT sandbox is treated as disposable. GitHub is the source of truth.
 
-## Run locally
+## Run from source
 
 ```bash
 python -m hello_github
+python -m hello_github --version
 python -m hello_github --json
 python -m unittest discover -s tests -v
 ```
 
-## What CI verifies
+`VERSION` is the single authoritative application version. Source execution reads it directly; built zipapps receive the same value at build time.
 
-GitHub Actions runs the unit tests on Python 3.11, 3.12, and 3.13. Each matrix job also uploads a small runtime report artifact. That artifact lets a later ChatGPT session inspect the result of code executed outside its temporary sandbox.
+## Build the runnable zipapp
+
+The project has no third-party runtime dependencies.
+
+```bash
+python tools/build_zipapp.py --output dist/hello-github.pyz
+python dist/hello-github.pyz --version
+python dist/hello-github.pyz --json
+```
+
+The builder normalizes Python source newlines and fixes ZIP member ordering, timestamps, permissions, and compression settings. This makes the built artifact independent of Windows CRLF checkout conversion.
+
+For release `v0.2.1`, Linux, macOS, and Windows all produced the same zipapp SHA-256:
+
+```text
+9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45
+```
+
+## CI
+
+The main CI verifies:
+
+- Python 3.11, 3.12, and 3.13 on Linux.
+- Python 3.13 portability on Windows and macOS.
+- Unit tests.
+- Two independent zipapp builds are byte-for-byte identical.
+- The zipapp runs successfully.
+- Source and zipapp JSON reports agree.
+- Cross-platform builds produce a stable reproducible artifact.
+
+Official GitHub Actions are pinned to immutable full commit SHAs rather than movable major-version tags.
 
 ## Releases
 
-`VERSION` is the release source of truth. When it changes on `main`, the release workflow validates the version, runs the tests, creates tag `v<version>`, publishes a GitHub Release, and attaches:
+Changing `VERSION` on `main` triggers the release workflow. It:
 
-- `runtime-report.json`
-- `release-manifest.txt`
+1. validates the semantic version,
+2. runs the tests,
+3. builds the zipapp twice and compares the bytes,
+4. verifies the zipapp's embedded `--version`,
+5. publishes tag `v<version>`,
+6. attaches `hello-github.pyz`, `runtime-report.json`, and `release-manifest.txt`,
+7. downloads the published assets again,
+8. byte-compares the downloaded files,
+9. executes the downloaded zipapp,
+10. re-verifies its version and runtime report.
 
-After publication, the workflow downloads those assets again and verifies them byte-for-byte against the generated originals. Actions artifacts remain useful for CI diagnostics; GitHub Releases are the durable delivery surface.
+Latest verified release: **v0.2.1**.
+
+Its executable asset is:
+
+```text
+hello-github.pyz
+SHA-256: 9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45
+```
+
+The release workflow verified:
+
+```text
+VERSION
+= release tag
+= source --version
+= built zipapp --version
+= runtime-report.version
+= downloaded zipapp --version
+```
 
 ## Issue-driven remote probes
 
-Opening an Issue with the exact title `[workspace-probe]` triggers a controlled GitHub Actions task, but only when the Issue actor is the repository owner. The workflow runs the tests, executes the fixed runtime probe, posts a structured result back to the Issue, and closes the Issue on success.
+Only Issues opened by the repository owner and having an exact fixed title can trigger these workflows. Issue bodies are ignored and never executed as commands.
 
-For failure-path diagnostics, `[workspace-probe-fail]` deliberately fails the fixed probe contract after the tests. The workflow still posts a structured failure result, leaves the Issue open for diagnosis, and marks the Actions run as failed.
+- `[workspace-probe]`: runs tests and a fixed runtime probe, posts a structured result, then closes on success.
+- `[workspace-probe-fail]`: deliberately exercises the failure path; diagnostics are posted before the Actions run fails, and the Issue remains open for diagnosis.
+- `[network-probe]`: performs a fixed DNS + HTTPS check against `https://example.com/`. The Issue body cannot choose another destination.
+- `[cache-probe]`: restores and advances a tiny counter stored through GitHub Actions Cache.
 
-Opening `[network-probe]` runs a separate fixed-target DNS + HTTPS check against `https://example.com/`. The URL is hard-coded in the workflow; Issue content cannot choose the destination.
+The cache experiment demonstrated state restoration across independent ephemeral runners:
 
-Issue bodies are deliberately ignored and are never executed as shell input.
+```text
+0 → 1 → 2 → 3 → 4
+```
+
+The chain continued successfully across an Actions runtime refresh.
 
 ## Review workflow
 
-The repository has also exercised an inline review loop where the initial 3-version CI suite passed but review found a shared-mutable-state bug. The PR was corrected, a repeated-call regression test was added, the review thread was replied to and resolved, and the updated CI matrix passed before merge.
+The repository has exercised a full inline review loop where the initial Linux matrix CI was green but review found a shared-mutable-state bug. The fix added regression coverage, the review thread was replied to and resolved, and the corrected CI passed before merge.
 
-GitHub correctly refuses self-approval of a PR; independent approval still requires a separate GitHub identity.
+GitHub correctly refuses self-approval of a pull request. Independent approval requires another GitHub identity.
 
-## Current experiment status
+## Known boundaries
 
-The end-to-end path has been verified across repository mutation, low-level Git objects, PRs, inline review, CI failure diagnosis and repair, 3-version regression testing, Actions artifacts, automatic branch cleanup, durable Releases with asset round-trip verification, Issue-driven success/failure tasks, and a fixed-target network probe from GitHub Actions. The latest verified release is `v0.1.1`.
+The current connector does not expose direct branch/ref deletion or arbitrary workflow-dispatch creation. Merged PR branches are instead removed using the repository's verified `delete_branch_on_merge` setting.
 
-See `PROJECT_STATE.md` for the durable handoff notes and known platform/account boundaries.
+For this private repository, native repository rulesets require a higher GitHub plan; required-status-check enforcement is therefore not currently a server-side merge gate. CI-before-merge is an explicit project convention.
+
+For the detailed durable handoff and exact verified boundaries, see `PROJECT_STATE.md`.
