@@ -20,8 +20,18 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Verify reproducible zipapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/build_zipapp.py --output dist/hello-github-a.pyz
+          python tools/build_zipapp.py --output dist/hello-github-b.pyz
+          cmp dist/hello-github-a.pyz dist/hello-github-b.pyz
+          python dist/hello-github-a.pyz --json > zipapp-runtime-report.json
       - name: Generate runtime report
         run: python -m hello_github --json > runtime-report.json
+      - name: Verify source and zipapp reports match
+        run: cmp runtime-report.json zipapp-runtime-report.json
       - name: Upload runtime report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
