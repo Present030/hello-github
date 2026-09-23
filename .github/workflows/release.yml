@@ -1,0 +1,58 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+            echo "VERSION must be semantic version X.Y.Z; got: $version" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build release reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m hello_github --json > runtime-report.json
+          {
+            echo "tag=$RELEASE_TAG"
+            echo "commit=$GITHUB_SHA"
+            sha256sum runtime-report.json
+          } > release-manifest.txt
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; nothing to do."
+            exit 0
+          fi
+          gh release create "$RELEASE_TAG"             runtime-report.json             release-manifest.txt             --target "$GITHUB_SHA"             --title "$RELEASE_TAG"             --notes "Persistent Workspace Lab release $RELEASE_TAG"
