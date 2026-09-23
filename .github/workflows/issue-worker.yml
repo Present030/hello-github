@@ -228,3 +228,55 @@ jobs:
         run: |
           echo "Network probe failed; see the Issue comment for details."
           exit 1
+
+  cache-probe:
+    if: ${{ github.actor == github.repository_owner && github.event.issue.title == '[cache-probe]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore previous probe state
+        uses: actions/cache@v4
+        with:
+          path: .cache-probe
+          key: workspace-counter-${{ github.run_id }}
+          restore-keys: |
+            workspace-counter-
+
+      - name: Advance cached counter
+        id: counter
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache-probe
+          previous=0
+          if [[ -f .cache-probe/state.txt ]]; then
+            previous="$(cat .cache-probe/state.txt)"
+          fi
+          current=$((previous + 1))
+          printf '%s\n' "$current" > .cache-probe/state.txt
+          {
+            echo "previous=$previous"
+            echo "current=$current"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post cache result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PREVIOUS: ${{ steps.counter.outputs.previous }}
+          CURRENT: ${{ steps.counter.outputs.current }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "## Cache probe result
+
+- run: `$GITHUB_RUN_ID`
+- previous counter: `$PREVIOUS`
+- current counter: `$CURRENT`
+
+The counter file is restored from GitHub Actions Cache. The Issue body is ignored."
+
+      - name: Close cache probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --reason completed
