@@ -25,6 +25,13 @@ jobs:
         with:
           python-version: "3.13"
 
+      # Temporary controlled fault used only for the health-check drill.
+      - name: Intentional health-check drill failure
+        shell: bash
+        run: |
+          echo "Intentional health-check drill failure."
+          exit 23
+
       - name: Verify source, build, and Release agree
         shell: bash
         env:
