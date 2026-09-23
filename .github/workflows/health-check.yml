@@ -25,6 +25,15 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Audit durable state drift
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > latest-release.json
+          python tools/audit_state.py --release-json latest-release.json
+
       - name: Verify source, build, and Release agree
         shell: bash
         env:
