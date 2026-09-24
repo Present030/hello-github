@@ -33,7 +33,7 @@
     }
 
     main {
-      width: min(720px, 100%);
+      width: min(860px, 100%);
       padding: clamp(28px, 6vw, 56px);
       border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
       border-radius: 24px;
@@ -48,11 +48,27 @@
       letter-spacing: -0.055em;
     }
 
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+    }
+
     p {
       margin: 0;
       max-width: 58ch;
       font-size: 1.05rem;
       line-height: 1.75;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-color: color-mix(in srgb, CanvasText 35%, transparent);
+      text-underline-offset: 0.2em;
+    }
+
+    a:hover {
+      text-decoration-color: currentColor;
     }
 
     .eyebrow {
@@ -64,8 +80,72 @@
       opacity: 0.6;
     }
 
+    .status {
+      margin-top: 34px;
+      padding-top: 28px;
+      border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+    }
+
+    .status-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .snapshot {
+      font-size: 0.78rem;
+      opacity: 0.55;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .status-card {
+      min-height: 112px;
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, CanvasText 13%, transparent);
+      border-radius: 16px;
+      background: color-mix(in srgb, Canvas 97%, CanvasText 3%);
+    }
+
+    .status-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.55;
+    }
+
+    .status-value {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 1.12rem;
+      font-weight: 700;
+    }
+
+    .status-detail {
+      font-size: 0.86rem;
+      line-height: 1.5;
+      opacity: 0.68;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin-top: 22px;
+      font-size: 0.9rem;
+    }
+
     .note {
-      margin-top: 32px;
+      margin-top: 28px;
       padding-top: 20px;
       border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
       font-size: 0.92rem;
@@ -78,11 +158,59 @@
     <div class="eyebrow">Persistent Workspace Lab</div>
     <h1>hello-github</h1>
     <p>
-      这是这个仓库的第一张网页。现在它还很简单，只负责证明一件事：
-      仓库里的代码，可以慢慢长成一个真正的网站。
+      这是一个很小的实验仓库，用来看看临时执行环境之外，
+      一个项目怎样依靠 GitHub 持续保存、验证、发布和恢复自己的状态。
     </p>
+
+    <section class="status" aria-labelledby="status-title">
+      <div class="status-header">
+        <h2 id="status-title">项目状态</h2>
+        <span class="snapshot">2026-09-24 快照</span>
+      </div>
+
+      <div class="status-grid">
+        <div class="status-card">
+          <span class="status-label">Version</span>
+          <span class="status-value">v0.3.0</span>
+          <span class="status-detail">当前正式版本</span>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">CI</span>
+          <span class="status-value">Passing</span>
+          <span class="status-detail">主分支验证通过</span>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">Release</span>
+          <span class="status-value">Verified</span>
+          <span class="status-detail">正式发布物已验证</span>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">Recovery</span>
+          <span class="status-value">Ready</span>
+          <span class="status-detail">自验证恢复包可用</span>
+        </div>
+
+        <div class="status-card">
+          <span class="status-label">SBOM</span>
+          <span class="status-value">Included</span>
+          <span class="status-detail">CycloneDX 1.6 已随 Release 发布</span>
+        </div>
+      </div>
+
+      <nav class="links" aria-label="Project links">
+        <a href="https://github.com/Present030/hello-github">源码仓库</a>
+        <a href="https://github.com/Present030/hello-github/releases/tag/v0.3.0">v0.3.0 Release</a>
+        <a href="https://github.com/Present030/hello-github/actions">Actions</a>
+        <a href="https://github.com/Present030/hello-github/releases/download/v0.3.0/hello-github.cdx.json">SBOM</a>
+        <a href="https://github.com/Present030/hello-github/releases/download/v0.3.0/hello-github-recovery.zip">Recovery bundle</a>
+      </nav>
+    </section>
+
     <p class="note">
-      后面的内容会分阶段加入。今天先从这一页开始。
+      这里先保留一份简单的静态快照。自动读取 GitHub 最新状态，可以以后再单独做。
     </p>
   </main>
 </body>
