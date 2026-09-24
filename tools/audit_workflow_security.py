@@ -91,9 +91,14 @@ def _run_blocks(text: str) -> list[str]:
     return blocks
 
 
-def audit_workflow(path: Path, *, expected_permissions: dict[str, str]) -> list[str]:
+def audit_workflow(
+    path: Path,
+    *,
+    expected_permissions: dict[str, str],
+    root: Path = ROOT,
+) -> list[str]:
     text = path.read_text(encoding="utf-8")
-    relative = path.relative_to(ROOT).as_posix()
+    relative = path.relative_to(root).as_posix()
     errors: list[str] = []
 
     for trigger in BANNED_TRIGGERS:
@@ -148,12 +153,13 @@ def audit_repository(root: Path = ROOT) -> list[str]:
             )
             continue
 
-        original_root = globals()["ROOT"]
-        try:
-            globals()["ROOT"] = root
-            errors.extend(audit_workflow(path, expected_permissions=expected))
-        finally:
-            globals()["ROOT"] = original_root
+        errors.extend(
+            audit_workflow(
+                path,
+                expected_permissions=expected,
+                root=root,
+            )
+        )
 
     missing = sorted(set(EXPECTED_PERMISSIONS) - seen)
     for name in missing:
