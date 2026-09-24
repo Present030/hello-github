@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Audit current tree for accidental public exposure
+        run: python tools/audit_public_exposure.py
+
       - name: Validate version
         shell: bash
         run: |
