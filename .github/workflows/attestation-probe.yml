@@ -1,0 +1,59 @@
+name: artifact-attestation-probe
+
+on:
+  push:
+    branches:
+      - artifact-attestation-probe
+    paths:
+      - ".github/workflows/attestation-probe.yml"
+      - "tools/audit_workflow_security.py"
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build fixed probe artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'hello-github native attestation probe\nworkflow_commit=%s\n' "$GITHUB_SHA" > attestation-probe.txt
+          sha256sum attestation-probe.txt
+
+      - name: Generate provenance attestation
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: attestation-probe.txt
+
+      - name: Verify attestation with GitHub CLI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh --version
+          gh attestation verify attestation-probe.txt \
+            -R "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/attestation-probe.yml"
+
+      - name: Report attestation identity
+        shell: bash
+        env:
+          ATTESTATION_ID: ${{ steps.attest.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
+        run: |
+          set -euo pipefail
+          test -n "$ATTESTATION_ID"
+          test -n "$ATTESTATION_URL"
+          echo "ATTESTATION_ID=$ATTESTATION_ID"
+          echo "ATTESTATION_URL=$ATTESTATION_URL"
+          echo "PASS: native GitHub artifact attestation generated and verified"
