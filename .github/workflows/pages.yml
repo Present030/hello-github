@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - "site/**"
+      - "VERSION"
+      - "tools/render_site.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -30,10 +32,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
+      - name: Render website from repository state
+        run: python tools/render_site.py
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
         with:
-          path: site
+          path: dist/site
 
       - name: Deploy to GitHub Pages
         id: deployment
