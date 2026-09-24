@@ -33,6 +33,7 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
     "recovery-portability.yml": {"contents": "read"},
     "project-health.yml": {"actions": "read", "contents": "read"},
     "release-integrity.yml": {"contents": "read"},
+    "permission-probe.yml": {"contents": "read", "issues": "write"},
 }
 
 BANNED_TRIGGERS = ("pull_request_target",)
