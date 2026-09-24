@@ -77,6 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          gh auth setup-git
           gh repo clone "$GITHUB_REPOSITORY" source -- --filter=blob:none --no-checkout
           git -C source fetch --force --depth=1 origin \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
