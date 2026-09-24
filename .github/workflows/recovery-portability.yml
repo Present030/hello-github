@@ -1,0 +1,116 @@
+name: recovery-portability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recovery-portability.yml
+      - tools/build_recovery_bundle.py
+      - tools/build_sbom.py
+      - tests/test_recovery_bundle.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: v0.2.1
+  EXPECTED_BUNDLE_SHA256: b0794bc50b45e802acb3a41ed75605dc9889e9be342e86bc8c3456ad1efc72a1
+  EXPECTED_ARTIFACT_SHA256: 9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45
+
+jobs:
+  recover:
+    name: recover-bundle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout current recovery tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Download historical Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-input/release
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir recovery-input/release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > recovery-input/release.json
+
+      - name: Build and self-verify recovery bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python recovery-input/release/hello-github.pyz --version)"
+          target="$(python -c "import json; print(json.load(open('recovery-input/release.json', encoding='utf-8'))['target_commitish'])")"
+
+          python tools/build_sbom.py \
+            --artifact recovery-input/release/hello-github.pyz \
+            --version "$version" \
+            --output recovery-input/hello-github.cdx.json
+
+          python tools/build_recovery_bundle.py \
+            --release-dir recovery-input/release \
+            --sbom recovery-input/hello-github.cdx.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" \
+            --target-commit "$target" \
+            --output recovery-bundle.zip
+
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          target = Path("recovery-extracted")
+          target.mkdir()
+          with ZipFile("recovery-bundle.zip") as archive:
+              archive.extractall(target)
+          PY
+          python recovery-extracted/verify.py
+          echo "RECOVERY_TARGET=$target" >> "$GITHUB_ENV"
+
+      - name: Rebuild historical source and compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --depth=1 origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          resolved="$(git rev-list -n 1 "$RELEASE_TAG")"
+          test "$resolved" = "$RECOVERY_TARGET"
+
+          git worktree add --detach recovered-source "$RELEASE_TAG"
+          mkdir -p rebuilt
+          python recovered-source/tools/build_zipapp.py \
+            --output "$GITHUB_WORKSPACE/rebuilt/hello-github.pyz"
+
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          bundle = Path("recovery-bundle.zip").read_bytes()
+          rebuilt = Path("rebuilt/hello-github.pyz").read_bytes()
+          released = Path("recovery-extracted/release/hello-github.pyz").read_bytes()
+
+          bundle_digest = hashlib.sha256(bundle).hexdigest()
+          artifact_digest = hashlib.sha256(released).hexdigest()
+
+          assert rebuilt == released
+          assert bundle_digest == os.environ["EXPECTED_BUNDLE_SHA256"]
+          assert artifact_digest == os.environ["EXPECTED_ARTIFACT_SHA256"]
+
+          print("PASS: recovery bundle is portable and reproducible")
+          print("BUNDLE_SHA256=" + bundle_digest)
+          print("ARTIFACT_SHA256=" + artifact_digest)
+          PY
