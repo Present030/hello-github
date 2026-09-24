@@ -13,11 +13,11 @@ The repository is the source of truth. Temporary sandbox files and individual Ac
 - Default branch: `main`.
 - Repository visibility: private.
 - Automatic deletion of merged PR head branches: enabled and verified.
-- Current application version: `0.2.1`.
-- Latest verified release: `v0.2.1`.
-- `v0.2.1` target commit: `131925b66b5ec7bec319cc2a9acaaef3d76e74a1`.
+- Current application version: `0.3.0`.
+- Latest verified release: `v0.3.0`.
+- `v0.3.0` target commit: `8e7b6fbc69de8fceb8afcfef468a501fa69f43e9`.
 - Latest executable Release asset: `hello-github.pyz`.
-- Executable SHA-256: `9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45`.
+- Executable SHA-256: `a9ebb8c1e1bfd8686d3fdeacf1441e3388a13d6749ee98707f5f5167e9d6c30a`.
 - Runtime dependencies: Python standard library only.
 
 ## Verified GitHub connector capabilities
@@ -143,11 +143,13 @@ Verified releases include:
 - `v0.2.0`
 - `v0.2.1`
 
-The current `v0.2.1` assets are:
+The current `v0.3.0` assets are:
 
-- `hello-github.pyz` — 2307 bytes — SHA-256 `9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45`
-- `release-manifest.txt` — 247 bytes — SHA-256 `5bba6d102115b49f045ceb310b505654129f993bce652e3b2a8e1a7ead71e691`
-- `runtime-report.json` — 167 bytes — SHA-256 `b105d8ca386c9097e9e81e61b294f27071963e4b681b741fbb00072bb860436e`
+- `hello-github.pyz` — 2307 bytes — SHA-256 `a9ebb8c1e1bfd8686d3fdeacf1441e3388a13d6749ee98707f5f5167e9d6c30a`
+- `hello-github.cdx.json` — 639 bytes — SHA-256 `da151d3d4f1a26c8e397de2c654fe0884a4fbca3719ad56be0bbf945eade2c24`
+- `hello-github-recovery.zip` — 5545 bytes — SHA-256 `2b4492aab5595d6b59d6d13c216ade03a0318e9a4d092fdc6d82a1c5ce2db420`
+- `release-manifest.txt` — 335 bytes — SHA-256 `4de085701ff30ad02fcd81a015454fbdd88872609a204cb7136a93ecb29ce7e0`
+- `runtime-report.json` — 167 bytes — SHA-256 `0190cedf575e85633d480a19fea7ac314129cd6fbbae9df3766ef9671c3d1785`
 
 For private Release assets, the connector can read Release metadata and digests but could not directly download via `browser_download_url` in this experiment. The authenticated Release workflow therefore performs its own download-and-compare round trip. Actions artifacts remain directly downloadable through the dedicated connector action.
 
