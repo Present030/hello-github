@@ -165,13 +165,13 @@
     <section class="status" aria-labelledby="status-title">
       <div class="status-header">
         <h2 id="status-title">项目状态</h2>
-        <span class="snapshot">2026-09-24 快照</span>
+        <span class="snapshot">VERSION 自动同步</span>
       </div>
 
       <div class="status-grid">
         <div class="status-card">
           <span class="status-label">Version</span>
-          <span class="status-value">v0.3.0</span>
+          <span class="status-value">v{{VERSION}}</span>
           <span class="status-detail">当前正式版本</span>
         </div>
 
@@ -202,15 +202,15 @@
 
       <nav class="links" aria-label="Project links">
         <a href="https://github.com/Present030/hello-github">源码仓库</a>
-        <a href="https://github.com/Present030/hello-github/releases/tag/v0.3.0">v0.3.0 Release</a>
+        <a href="https://github.com/Present030/hello-github/releases/tag/v{{VERSION}}">v{{VERSION}} Release</a>
         <a href="https://github.com/Present030/hello-github/actions">Actions</a>
-        <a href="https://github.com/Present030/hello-github/releases/download/v0.3.0/hello-github.cdx.json">SBOM</a>
-        <a href="https://github.com/Present030/hello-github/releases/download/v0.3.0/hello-github-recovery.zip">Recovery bundle</a>
+        <a href="https://github.com/Present030/hello-github/releases/download/v{{VERSION}}/hello-github.cdx.json">SBOM</a>
+        <a href="https://github.com/Present030/hello-github/releases/download/v{{VERSION}}/hello-github-recovery.zip">Recovery bundle</a>
       </nav>
     </section>
 
     <p class="note">
-      这里先保留一份简单的静态快照。自动读取 GitHub 最新状态，可以以后再单独做。
+      版本号与对应 Release 下载链接会在部署时从仓库的 VERSION 自动生成；其余状态仍保持简洁的项目快照。
     </p>
   </main>
 </body>
