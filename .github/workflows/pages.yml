@@ -46,3 +46,57 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+
+
+      - name: Verify deployed page matches rendered artifact
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          expected = Path("dist/site/index.html").read_bytes()
+          expected_sha = hashlib.sha256(expected).hexdigest()
+          page_url = os.environ["PAGE_URL"]
+          separator = "&" if "?" in page_url else "?"
+          probe_url = f"{page_url}{separator}deployment={os.environ['GITHUB_SHA']}"
+
+          last_sha = None
+          for attempt in range(1, 11):
+              request = urllib.request.Request(
+                  probe_url,
+                  headers={
+                      "Cache-Control": "no-cache",
+                      "User-Agent": "hello-github-pages-verifier",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      actual = response.read()
+              except Exception as exc:
+                  print(f"Attempt {attempt}/10: fetch failed: {type(exc).__name__}")
+              else:
+                  last_sha = hashlib.sha256(actual).hexdigest()
+                  if actual == expected:
+                      print(
+                          "PASS: public GitHub Pages content matches the rendered "
+                          f"artifact byte-for-byte (sha256={expected_sha})"
+                      )
+                      raise SystemExit(0)
+                  print(
+                      f"Attempt {attempt}/10: live sha256={last_sha}; "
+                      f"expected sha256={expected_sha}"
+                  )
+
+              if attempt < 10:
+                  time.sleep(3)
+
+          raise SystemExit(
+              "Public GitHub Pages content did not converge to the rendered "
+              f"artifact; expected={expected_sha} last={last_sha}"
+          )
+          PY
