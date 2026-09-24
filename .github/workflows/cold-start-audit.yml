@@ -1,0 +1,133 @@
+name: cold-start-audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cold-start-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cold-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert empty source workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e VERSION
+          test ! -d .git
+          echo "PASS: runner started without a checked-out repository"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Discover and download latest formal Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > release.json
+          tag="$(python -c "import json; print(json.load(open('release.json', encoding='utf-8'))['tag_name'])")"
+          target="$(python -c "import json; print(json.load(open('release.json', encoding='utf-8'))['target_commitish'])")"
+          version="${tag#v}"
+
+          mkdir formal-release
+          gh release download "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir formal-release
+
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TARGET=$target" >> "$GITHUB_ENV"
+
+      - name: Verify Release without source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python formal-release/hello-github.pyz --version)" = "$RELEASE_VERSION"
+          python formal-release/hello-github.pyz --json > runtime-from-release.json
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          report = json.loads(Path("runtime-from-release.json").read_text(encoding="utf-8"))
+          assert report["version"] == os.environ["RELEASE_VERSION"]
+
+          target = Path("offline-recovery")
+          target.mkdir()
+          with ZipFile("formal-release/hello-github-recovery.zip") as archive:
+              archive.extractall(target)
+          PY
+          python offline-recovery/verify.py
+          echo "PASS: formal Release is independently usable without repository source"
+
+      - name: Recover source from release tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh repo clone "$GITHUB_REPOSITORY" source -- --filter=blob:none --no-checkout
+          git -C source fetch --force --depth=1 origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          resolved="$(git -C source rev-list -n 1 "$RELEASE_TAG")"
+          test "$resolved" = "$RELEASE_TARGET"
+          git -C source checkout --detach "$RELEASE_TAG"
+
+      - name: Reproduce formal artifacts from recovered tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rebuilt/release-input
+          python source/tools/build_zipapp.py \
+            --output "$GITHUB_WORKSPACE/rebuilt/hello-github.pyz"
+          python source/tools/build_sbom.py \
+            --artifact rebuilt/hello-github.pyz \
+            --version "$RELEASE_VERSION" \
+            --output rebuilt/hello-github.cdx.json
+
+          cp formal-release/release-manifest.txt rebuilt/release-input/
+          cp formal-release/runtime-report.json rebuilt/release-input/
+          cp rebuilt/hello-github.pyz rebuilt/release-input/
+
+          python source/tools/build_recovery_bundle.py \
+            --release-dir rebuilt/release-input \
+            --sbom rebuilt/hello-github.cdx.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" \
+            --target-commit "$RELEASE_TARGET" \
+            --output rebuilt/hello-github-recovery.zip
+
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          pairs = (
+              ("hello-github.pyz", "formal-release/hello-github.pyz", "rebuilt/hello-github.pyz"),
+              ("hello-github.cdx.json", "formal-release/hello-github.cdx.json", "rebuilt/hello-github.cdx.json"),
+              ("hello-github-recovery.zip", "formal-release/hello-github-recovery.zip", "rebuilt/hello-github-recovery.zip"),
+          )
+          for name, formal_path, rebuilt_path in pairs:
+              formal = Path(formal_path).read_bytes()
+              rebuilt = Path(rebuilt_path).read_bytes()
+              assert formal == rebuilt, f"cold-start rebuild differs: {name}"
+              print(f"{name}_SHA256=" + hashlib.sha256(formal).hexdigest())
+
+          print("PASS: cold-start recovered tag reproduces all formal deterministic assets")
+          PY
+
+      - name: Export formal recovery asset for connector handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: cold-start-formal-recovery
+          path: formal-release/hello-github-recovery.zip
