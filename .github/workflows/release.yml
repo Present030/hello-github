@@ -48,6 +48,21 @@ jobs:
           python dist/hello-github.pyz --json > runtime-report.json
           python -c "import json, os; report=json.load(open('runtime-report.json', encoding='utf-8')); assert report['version'] == os.environ['RELEASE_VERSION'], report"
 
+      - name: Build deterministic CycloneDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/build_sbom.py \
+            --artifact dist/hello-github.pyz \
+            --version "$RELEASE_VERSION" \
+            --output hello-github.cdx.json
+          python tools/build_sbom.py \
+            --artifact dist/hello-github.pyz \
+            --version "$RELEASE_VERSION" \
+            --output hello-github-second.cdx.json
+          cmp hello-github.cdx.json hello-github-second.cdx.json
+          rm hello-github-second.cdx.json
+
       - name: Build release manifest
         shell: bash
         run: |
@@ -58,7 +73,42 @@ jobs:
             echo "commit=$GITHUB_SHA"
             sha256sum runtime-report.json
             sha256sum dist/hello-github.pyz
+            sha256sum hello-github.cdx.json
           } > release-manifest.txt
+
+      - name: Build and self-verify recovery bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf recovery-input recovery-verify
+          mkdir -p recovery-input/release
+          cp dist/hello-github.pyz recovery-input/release/
+          cp runtime-report.json recovery-input/release/
+          cp release-manifest.txt recovery-input/release/
+
+          for name in a b; do
+            python tools/build_recovery_bundle.py \
+              --release-dir recovery-input/release \
+              --sbom hello-github.cdx.json \
+              --repository "$GITHUB_REPOSITORY" \
+              --tag "$RELEASE_TAG" \
+              --target-commit "$GITHUB_SHA" \
+              --output "dist/hello-github-recovery-$name.zip"
+          done
+          cmp dist/hello-github-recovery-a.zip dist/hello-github-recovery-b.zip
+          mv dist/hello-github-recovery-a.zip dist/hello-github-recovery.zip
+          rm dist/hello-github-recovery-b.zip
+
+          mkdir recovery-verify
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          with ZipFile("dist/hello-github-recovery.zip") as archive:
+              archive.extractall(Path("recovery-verify"))
+          PY
+          python recovery-verify/verify.py
+          cmp recovery-verify/release/hello-github.pyz dist/hello-github.pyz
 
       - name: Create or reuse GitHub release
         shell: bash
@@ -69,7 +119,15 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists; reusing it for verification."
           else
-            gh release create "$RELEASE_TAG" runtime-report.json release-manifest.txt dist/hello-github.pyz --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes "Persistent Workspace Lab release $RELEASE_TAG"
+            gh release create "$RELEASE_TAG" \
+              runtime-report.json \
+              release-manifest.txt \
+              dist/hello-github.pyz \
+              hello-github.cdx.json \
+              dist/hello-github-recovery.zip \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TAG" \
+              --notes "Persistent Workspace Lab release $RELEASE_TAG"
           fi
 
       - name: Verify release assets round-trip
@@ -78,14 +136,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          rm -rf verify-release
-          mkdir verify-release
+          rm -rf verify-release verify-recovery
+          mkdir verify-release verify-recovery
           gh release download "$RELEASE_TAG" --dir verify-release
+
           cmp runtime-report.json verify-release/runtime-report.json
           cmp release-manifest.txt verify-release/release-manifest.txt
           cmp dist/hello-github.pyz verify-release/hello-github.pyz
+          cmp hello-github.cdx.json verify-release/hello-github.cdx.json
+          cmp dist/hello-github-recovery.zip verify-release/hello-github-recovery.zip
+
           python verify-release/hello-github.pyz --version > downloaded-version.txt
           test "$(cat downloaded-version.txt)" = "$RELEASE_VERSION"
           python verify-release/hello-github.pyz --json > downloaded-runtime-report.json
           cmp runtime-report.json downloaded-runtime-report.json
-          echo "PASS: release tag, embedded version, assets, and runnable zipapp all agree"
+
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          with ZipFile("verify-release/hello-github-recovery.zip") as archive:
+              archive.extractall(Path("verify-recovery"))
+          PY
+          python verify-recovery/verify.py
+          cmp verify-recovery/release/hello-github.pyz verify-release/hello-github.pyz
+
+          echo "PASS: release tag, executable, SBOM, recovery bundle, and runtime evidence all agree"
