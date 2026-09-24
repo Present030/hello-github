@@ -27,15 +27,11 @@ class WorkflowSecurityAuditTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             path = write_workflow(root, "test.yml", content)
-            old_root = security.ROOT
-            try:
-                security.ROOT = root
-                return security.audit_workflow(
-                    path,
-                    expected_permissions=permissions or {"contents": "read"},
-                )
-            finally:
-                security.ROOT = old_root
+            return security.audit_workflow(
+                path,
+                expected_permissions=permissions or {"contents": "read"},
+                root=root,
+            )
 
     def test_accepts_pinned_action_and_minimal_permissions(self) -> None:
         findings = self.audit(
