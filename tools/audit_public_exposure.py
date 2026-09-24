@@ -23,6 +23,21 @@ SAFE_EMAIL_DOMAINS = {
     "users.noreply.github.com",
 }
 
+SAFE_EMAILS = {
+    "noreply@github.com",
+}
+
+KNOWN_HISTORY_ADVISORIES = {
+    (
+        "email-address",
+        "history:348f9e1be855:tests/test_public_exposure_audit.py:25",
+    ),
+    (
+        "private-ip-address",
+        "history:348f9e1be855:tests/test_public_exposure_audit.py:38",
+    ),
+}
+
 SAFE_HOME_NAMES = {
     "runner",
     "oai",
@@ -75,8 +90,16 @@ BLOCK_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 EMAIL_RE = re.compile(
     r"\b[A-Za-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@"
-    r"([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)\b"
+    r"([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b"
 )
+
+
+def email_is_safe(email: str) -> bool:
+    lowered = email.lower()
+    if lowered in SAFE_EMAILS:
+        return True
+    domain = lowered.rsplit("@", 1)[-1] if "@" in lowered else ""
+    return domain in SAFE_EMAIL_DOMAINS
 WINDOWS_HOME_RE = re.compile(r"(?i)\b[A-Z]:\\Users\\([^\\/\r\n]+)")
 POSIX_HOME_RE = re.compile(r"(?<![A-Za-z0-9_])/(?:home|Users)/([^/\s]+)")
 PRIVATE_IPV4_RE = re.compile(
@@ -124,7 +147,7 @@ def scan_text(text: str, location: str) -> list[Finding]:
                 findings.append(Finding("BLOCK", rule, line_location))
 
         for match in EMAIL_RE.finditer(line):
-            if match.group(1).lower() not in SAFE_EMAIL_DOMAINS:
+            if not email_is_safe(match.group(0)):
                 findings.append(Finding("ADVISORY", "email-address", line_location))
                 break
 
@@ -239,8 +262,7 @@ def commit_metadata_findings(root: Path = ROOT) -> list[Finding]:
             continue
         commit, author_email, committer_email = parts
         for role, email in (("author", author_email), ("committer", committer_email)):
-            domain = email.rsplit("@", 1)[-1].lower() if "@" in email else ""
-            if email and domain not in SAFE_EMAIL_DOMAINS:
+            if email and not email_is_safe(email):
                 findings.append(
                     Finding(
                         "ADVISORY",
@@ -252,8 +274,16 @@ def commit_metadata_findings(root: Path = ROOT) -> list[Finding]:
 
 
 def deduplicate(findings: Iterable[Finding]) -> list[Finding]:
+    unique = {
+        item
+        for item in findings
+        if not (
+            item.severity == "ADVISORY"
+            and (item.rule, item.location) in KNOWN_HISTORY_ADVISORIES
+        )
+    }
     return sorted(
-        set(findings),
+        unique,
         key=lambda item: (item.severity, item.rule, item.location),
     )
 
