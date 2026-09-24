@@ -35,6 +35,7 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
     "release-integrity.yml": {"contents": "read"},
     "permission-probe.yml": {"contents": "read", "issues": "write"},
     "cold-start-audit.yml": {"contents": "read"},
+    "pages.yml": {"contents": "read", "pages": "write", "id-token": "write"},
 }
 
 BANNED_TRIGGERS = ("pull_request_target",)
