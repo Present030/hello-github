@@ -1,0 +1,75 @@
+name: permission-probe
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  permission-probe:
+    if: ${{ github.actor == github.repository_owner && github.event.issue.title == '[permission-probe]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attempt forbidden contents write
+        id: forbidden
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref="refs/heads/__permission_probe_should_not_exist"
+
+          set +e
+          output="$(gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="$ref" \
+            -f sha="$GITHUB_SHA" 2>&1)"
+          code=$?
+          set -e
+
+          printf '%s\n' "$output"
+          if [[ "$code" -eq 0 ]]; then
+            echo "ERROR: contents write unexpectedly succeeded" >&2
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/git/refs/heads/__permission_probe_should_not_exist" \
+              >/dev/null 2>&1 || true
+            exit 23
+          fi
+
+          echo "PASS: explicit contents: read token rejected Git ref creation"
+
+      - name: Post permission result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FORBIDDEN_OUTCOME: ${{ steps.forbidden.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$FORBIDDEN_OUTCOME" == "success" ]]; then
+            body="PASS: explicit contents: read rejected Git ref creation, while issues: write remained available for this report."
+          else
+            body="FAIL: the forbidden Git ref write unexpectedly succeeded; inspect the Actions run."
+          fi
+          gh issue comment "$ISSUE_NUMBER" --body "$body"
+
+      - name: Close successful permission probe
+        if: ${{ steps.forbidden.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --reason completed
+
+      - name: Enforce unexpected write success
+        if: ${{ steps.forbidden.outcome != 'success' }}
+        run: |
+          echo "Permission boundary failed."
+          exit 1
