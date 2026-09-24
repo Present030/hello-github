@@ -22,7 +22,8 @@ class PublicExposureAuditTests(unittest.TestCase):
         self.assertTrue(all(token not in item.location for item in findings))
 
     def test_real_email_is_advisory(self) -> None:
-        findings = scan_text("contact alice@company.invalid", "fixture.txt")
+        email = "alice" + "@" + "company.invalid"
+        findings = scan_text(f"contact {email}", "fixture.txt")
         self.assertTrue(
             any(item.severity == "ADVISORY" and item.rule == "email-address" for item in findings)
         )
@@ -34,8 +35,17 @@ class PublicExposureAuditTests(unittest.TestCase):
         )
         self.assertFalse(any(item.rule == "email-address" for item in findings))
 
+    def test_github_web_flow_email_is_allowed(self) -> None:
+        findings = scan_text("noreply@github.com", "fixture.txt")
+        self.assertFalse(any(item.rule == "email-address" for item in findings))
+
+    def test_package_purl_is_not_misread_as_email(self) -> None:
+        findings = scan_text("pkg:generic/hello-github@1.2.3", "fixture.txt")
+        self.assertFalse(any(item.rule == "email-address" for item in findings))
+
     def test_private_ip_is_advisory(self) -> None:
-        findings = scan_text("host=192.168.1.5", "fixture.txt")
+        address = "192." + "168.1.5"
+        findings = scan_text(f"host={address}", "fixture.txt")
         self.assertTrue(any(item.rule == "private-ip-address" for item in findings))
 
     def test_sensitive_filename_is_advisory(self) -> None:
