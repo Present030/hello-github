@@ -110,6 +110,17 @@ class RecoveryBundleTests(unittest.TestCase):
             )
             self.assertIn("PASS: recovery bundle v1.2.3 verified", completed.stdout)
 
+            with (extracted / "RECOVERY.md").open("a", encoding="utf-8") as stream:
+                stream.write("\nTAMPERED\n")
+            tampered = subprocess.run(
+                [sys.executable, str(extracted / "verify.py")],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(tampered.returncode, 0)
+            self.assertIn("checksum mismatch for RECOVERY.md", tampered.stderr)
+
     def test_rejects_invalid_target_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
