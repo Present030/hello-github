@@ -9,6 +9,7 @@ on:
       - "site/**"
       - "VERSION"
       - "tools/render_site.py"
+      - "tools/check_site_links.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -100,3 +101,9 @@ jobs:
               f"artifact; expected={expected_sha} last={last_sha}"
           )
           PY
+
+
+      - name: Verify published project links
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: python tools/check_site_links.py --page-url "$PAGE_URL"
