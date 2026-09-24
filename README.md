@@ -76,14 +76,19 @@ Changing `VERSION` on `main` triggers the release workflow. It:
 9. executes the downloaded zipapp,
 10. re-verifies its version and runtime report.
 
-Latest verified release: **v0.2.1**.
+Latest verified release: **v0.3.0**.
 
 Its executable asset is:
 
 ```text
 hello-github.pyz
-SHA-256: 9945c0f8c4a31d2064af72c633528f79a85d769edcdd075c5f6b60e45909cd45
+SHA-256: a9ebb8c1e1bfd8686d3fdeacf1441e3388a13d6749ee98707f5f5167e9d6c30a
 ```
+
+Starting with v0.3.0, the formal Release also publishes a deterministic CycloneDX SBOM
+(`hello-github.cdx.json`) and a deterministic self-verifying disaster-recovery bundle
+(`hello-github-recovery.zip`). The release workflow downloads and byte-compares all
+published assets and runs the downloaded recovery bundle verifier.
 
 The release workflow verified:
 
