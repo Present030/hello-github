@@ -129,6 +129,26 @@ jobs:
         )
         self.assertTrue(any("permissions" in item and "!= policy" in item for item in excess))
 
+    def test_workflow_run_requires_main_push_success_guards(self) -> None:
+        findings = self.audit(
+            """name: unsafe
+on:
+  workflow_run:
+    workflows: ["workspace-ci"]
+    types: [completed]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+""",
+            permissions={"actions": "read", "contents": "read"},
+        )
+        self.assertTrue(any("workflow_run lacks required guard" in item for item in findings))
+
     def test_issue_trigger_requires_owner_and_title_gates(self) -> None:
         findings = self.audit(
             """name: unsafe
