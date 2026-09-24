@@ -1,0 +1,120 @@
+name: recovery-bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recovery-bundle.yml
+      - tools/build_recovery_bundle.py
+      - tests/test_recovery_bundle.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: v0.2.1
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Download official Release assets and metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-input/release
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir recovery-input/release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > recovery-input/release.json
+
+      - name: Validate Release anchor and build SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python recovery-input/release/hello-github.pyz --version)"
+          target="$(python -c "import json; print(json.load(open('recovery-input/release.json', encoding='utf-8'))['target_commitish'])")"
+          test "$RELEASE_TAG" = "v$version"
+          test "${#target}" -eq 40
+
+          python tools/build_sbom.py \
+            --artifact recovery-input/release/hello-github.pyz \
+            --version "$version" \
+            --output recovery-input/hello-github.cdx.json
+
+          echo "RECOVERY_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RECOVERY_TARGET=$target" >> "$GITHUB_ENV"
+
+      - name: Build deterministic recovery bundle twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for name in a b; do
+            python tools/build_recovery_bundle.py \
+              --release-dir recovery-input/release \
+              --sbom recovery-input/hello-github.cdx.json \
+              --repository "$GITHUB_REPOSITORY" \
+              --tag "$RELEASE_TAG" \
+              --target-commit "$RECOVERY_TARGET" \
+              --output "dist/recovery-bundle-$name.zip"
+          done
+          cmp dist/recovery-bundle-a.zip dist/recovery-bundle-b.zip
+
+      - name: Verify extracted bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          target = Path("recovery-extracted")
+          target.mkdir()
+          with ZipFile("dist/recovery-bundle-a.zip") as archive:
+              archive.extractall(target)
+          PY
+          python recovery-extracted/verify.py
+
+      - name: Rebuild from historical Git tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --depth=1 origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          resolved="$(git rev-list -n 1 "$RELEASE_TAG")"
+          test "$resolved" = "$RECOVERY_TARGET"
+
+          git worktree add --detach recovered-source "$RELEASE_TAG"
+          mkdir -p rebuilt
+          python recovered-source/tools/build_zipapp.py \
+            --output "$GITHUB_WORKSPACE/rebuilt/hello-github.pyz"
+          cmp rebuilt/hello-github.pyz recovery-extracted/release/hello-github.pyz
+
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          bundle = Path("dist/recovery-bundle-a.zip")
+          artifact = Path("recovery-extracted/release/hello-github.pyz")
+          print("PASS: recovery bundle verified and historical rebuild matches")
+          print("BUNDLE_SHA256=" + hashlib.sha256(bundle.read_bytes()).hexdigest())
+          print("ARTIFACT_SHA256=" + hashlib.sha256(artifact.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload recovery bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: recovery-bundle-v0.2.1
+          path: dist/recovery-bundle-a.zip
