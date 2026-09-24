@@ -1,3 +1,4 @@
+# GitHub Pages source is configured to use GitHub Actions.
 name: Deploy website to GitHub Pages
 
 on:
