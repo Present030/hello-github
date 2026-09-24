@@ -1,0 +1,144 @@
+name: release-integrity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-integrity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify-release (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+
+    steps:
+      - name: Checkout current verification tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Download current formal Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v$version"
+          mkdir -p formal-release
+          gh release download "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir formal-release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > formal-release.json
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Verify formal executable, manifest, SBOM, and recovery bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python formal-release/hello-github.pyz --version)" = "$RELEASE_VERSION"
+          python formal-release/hello-github.pyz --json > formal-runtime.json
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          release = json.loads(Path("formal-release.json").read_text(encoding="utf-8"))
+          report = json.loads(Path("formal-runtime.json").read_text(encoding="utf-8"))
+          sbom = json.loads(Path("formal-release/hello-github.cdx.json").read_text(encoding="utf-8"))
+          assets = {asset["name"]: asset for asset in release["assets"]}
+
+          pyz = Path("formal-release/hello-github.pyz").read_bytes()
+          pyz_digest = hashlib.sha256(pyz).hexdigest()
+          assert report["version"] == os.environ["RELEASE_VERSION"]
+          assert release["tag_name"] == os.environ["RELEASE_TAG"]
+          assert assets["hello-github.pyz"]["digest"] == "sha256:" + pyz_digest
+          assert sbom["metadata"]["component"]["version"] == os.environ["RELEASE_VERSION"]
+          assert sbom["metadata"]["component"]["hashes"][0]["content"] == pyz_digest
+
+          manifest = Path("formal-release/release-manifest.txt").read_text(encoding="utf-8")
+          assert f"tag={os.environ['RELEASE_TAG']}" in manifest
+          assert f"version={os.environ['RELEASE_VERSION']}" in manifest
+          assert f"commit={release['target_commitish']}" in manifest
+
+          target = Path("formal-recovery")
+          target.mkdir()
+          with ZipFile("formal-release/hello-github-recovery.zip") as archive:
+              archive.extractall(target)
+          PY
+          python formal-recovery/verify.py
+          python -c "from pathlib import Path; assert Path('formal-recovery/release/hello-github.pyz').read_bytes() == Path('formal-release/hello-github.pyz').read_bytes()"
+
+      - name: Rebuild historical tag and all derived provenance assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$(python -c "import json; print(json.load(open('formal-release.json', encoding='utf-8'))['target_commitish'])")"
+          git fetch --force --depth=1 origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          resolved="$(git rev-list -n 1 "$RELEASE_TAG")"
+          test "$resolved" = "$target"
+
+          git worktree add --detach release-source "$RELEASE_TAG"
+          mkdir -p rebuilt/release-input
+          python release-source/tools/build_zipapp.py \
+            --output "$GITHUB_WORKSPACE/rebuilt/hello-github.pyz"
+          python tools/build_sbom.py \
+            --artifact rebuilt/hello-github.pyz \
+            --version "$RELEASE_VERSION" \
+            --output rebuilt/hello-github.cdx.json
+
+          cp formal-release/release-manifest.txt rebuilt/release-input/
+          cp formal-release/runtime-report.json rebuilt/release-input/
+          cp rebuilt/hello-github.pyz rebuilt/release-input/
+
+          python tools/build_recovery_bundle.py \
+            --release-dir rebuilt/release-input \
+            --sbom rebuilt/hello-github.cdx.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" \
+            --target-commit "$target" \
+            --output rebuilt/hello-github-recovery.zip
+
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          pairs = (
+              ("hello-github.pyz", "formal-release/hello-github.pyz", "rebuilt/hello-github.pyz"),
+              ("hello-github.cdx.json", "formal-release/hello-github.cdx.json", "rebuilt/hello-github.cdx.json"),
+              ("hello-github-recovery.zip", "formal-release/hello-github-recovery.zip", "rebuilt/hello-github-recovery.zip"),
+          )
+          for name, published_path, rebuilt_path in pairs:
+              published = Path(published_path).read_bytes()
+              rebuilt = Path(rebuilt_path).read_bytes()
+              assert published == rebuilt, f"{name} was not reproduced byte-for-byte"
+              print(f"{name}_SHA256=" + hashlib.sha256(published).hexdigest())
+
+          print("PASS: formal Release is runnable, self-consistent, and reproducible")
+          PY
