@@ -14,6 +14,7 @@ CRITICAL_WORKFLOWS = (
     "sbom-probe",
     "recovery-bundle",
     "recovery-portability",
+    "release-integrity",
 )
 
 
