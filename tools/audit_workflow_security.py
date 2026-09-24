@@ -31,6 +31,7 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
     "sbom-probe.yml": {"contents": "read"},
     "recovery-bundle.yml": {"contents": "read"},
     "recovery-portability.yml": {"contents": "read"},
+    "project-health.yml": {"actions": "read", "contents": "read"},
 }
 
 BANNED_TRIGGERS = ("pull_request_target",)
@@ -135,6 +136,16 @@ def audit_workflow(
             errors.append(f"{relative}: Issue trigger lacks repository-owner gate")
         if "github.event.issue.title" not in text:
             errors.append(f"{relative}: Issue trigger lacks exact-title gate")
+
+    if re.search(r"(?m)^\s{2}workflow_run:\s*$", text):
+        required_guards = (
+            "github.event.workflow_run.event == 'push'",
+            "github.event.workflow_run.head_branch == 'main'",
+            "github.event.workflow_run.conclusion == 'success'",
+        )
+        for guard in required_guards:
+            if guard not in text:
+                errors.append(f"{relative}: workflow_run lacks required guard: {guard}")
 
     return errors
 
