@@ -40,6 +40,7 @@ def build_snapshot(
     head_sha: str,
     release: dict[str, Any],
     runs_payload: dict[str, Any],
+    current_ci: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     version = version.strip()
     expected_tag = f"v{version}"
@@ -59,20 +60,29 @@ def build_snapshot(
         if isinstance(run, dict)
     ]
     for name in CRITICAL_WORKFLOWS:
-        run = _latest_completed_run(runs, name)
-        if run is None:
-            workflow_evidence[name] = None
-            all_evidence_success = False
-            continue
-        evidence = {
-            "id": run.get("id"),
-            "run_number": run.get("run_number"),
-            "event": run.get("event"),
-            "head_sha": run.get("head_sha"),
-            "conclusion": run.get("conclusion"),
-        }
+        if name == "workspace-ci" and current_ci is not None:
+            evidence = {
+                "id": current_ci.get("id"),
+                "run_number": current_ci.get("run_number"),
+                "event": current_ci.get("event"),
+                "head_sha": current_ci.get("head_sha"),
+                "conclusion": current_ci.get("conclusion"),
+            }
+        else:
+            run = _latest_completed_run(runs, name)
+            if run is None:
+                workflow_evidence[name] = None
+                all_evidence_success = False
+                continue
+            evidence = {
+                "id": run.get("id"),
+                "run_number": run.get("run_number"),
+                "event": run.get("event"),
+                "head_sha": run.get("head_sha"),
+                "conclusion": run.get("conclusion"),
+            }
         workflow_evidence[name] = evidence
-        if run.get("conclusion") != "success":
+        if evidence.get("conclusion") != "success":
             all_evidence_success = False
 
     latest_ci = workflow_evidence.get("workspace-ci")
@@ -116,6 +126,10 @@ def main() -> int:
     parser.add_argument("--release-json", type=Path, required=True)
     parser.add_argument("--runs-json", type=Path, required=True)
     parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--current-ci-run-id", type=int, required=True)
+    parser.add_argument("--current-ci-run-number", type=int, required=True)
+    parser.add_argument("--current-ci-event", required=True)
+    parser.add_argument("--current-ci-conclusion", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -124,6 +138,13 @@ def main() -> int:
         head_sha=args.head_sha,
         release=json.loads(args.release_json.read_text(encoding="utf-8")),
         runs_payload=json.loads(args.runs_json.read_text(encoding="utf-8")),
+        current_ci={
+            "id": args.current_ci_run_id,
+            "run_number": args.current_ci_run_number,
+            "event": args.current_ci_event,
+            "head_sha": args.head_sha,
+            "conclusion": args.current_ci_conclusion,
+        },
     )
     args.output.write_text(
         json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
