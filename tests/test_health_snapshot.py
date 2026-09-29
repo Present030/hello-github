@@ -52,6 +52,25 @@ class HealthSnapshotTests(unittest.TestCase):
         self.assertTrue(snapshot["checks"]["release_alignment"])
         self.assertTrue(snapshot["checks"]["current_main_ci"])
 
+    def test_current_ci_event_overrides_stale_api_listing(self) -> None:
+        snapshot = build_snapshot(
+            version="1.2.3",
+            head_sha=HEAD,
+            release=release(),
+            runs_payload=runs(ci_head="e" * 40),
+            current_ci={
+                "id": 999,
+                "run_number": 42,
+                "event": "push",
+                "head_sha": HEAD,
+                "conclusion": "success",
+            },
+        )
+        self.assertEqual(snapshot["status"], "healthy")
+        self.assertTrue(snapshot["checks"]["current_main_ci"])
+        self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["id"], 999)
+
+
     def test_release_drift_degrades_snapshot(self) -> None:
         payload = release()
         payload["tag_name"] = "v9.9.9"
