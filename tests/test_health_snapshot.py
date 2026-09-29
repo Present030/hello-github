@@ -74,6 +74,28 @@ class HealthSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["status"], "degraded")
         self.assertFalse(snapshot["checks"]["current_main_ci"])
 
+
+    def test_current_ci_event_overrides_stale_api_listing(self) -> None:
+        stale_runs = runs(ci_head="e" * 40)
+        snapshot = build_snapshot(
+            version="1.2.3",
+            head_sha=HEAD,
+            release=release(),
+            runs_payload=stale_runs,
+            current_ci={
+                "id": 999,
+                "run_number": 42,
+                "event": "push",
+                "head_sha": HEAD,
+                "conclusion": "success",
+                "status": "completed",
+                "name": "workspace-ci",
+            },
+        )
+        self.assertEqual(snapshot["status"], "healthy")
+        self.assertTrue(snapshot["checks"]["current_main_ci"])
+        self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["id"], 999)
+
     def test_failed_critical_workflow_degrades_snapshot(self) -> None:
         snapshot = build_snapshot(
             version="1.2.3",
