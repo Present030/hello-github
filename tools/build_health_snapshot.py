@@ -40,6 +40,7 @@ def build_snapshot(
     head_sha: str,
     release: dict[str, Any],
     runs_payload: dict[str, Any],
+    current_ci: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     version = version.strip()
     expected_tag = f"v{version}"
@@ -59,7 +60,11 @@ def build_snapshot(
         if isinstance(run, dict)
     ]
     for name in CRITICAL_WORKFLOWS:
-        run = _latest_completed_run(runs, name)
+        run = (
+            current_ci
+            if name == "workspace-ci" and current_ci is not None
+            else _latest_completed_run(runs, name)
+        )
         if run is None:
             workflow_evidence[name] = None
             all_evidence_success = False
@@ -116,14 +121,31 @@ def main() -> int:
     parser.add_argument("--release-json", type=Path, required=True)
     parser.add_argument("--runs-json", type=Path, required=True)
     parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--current-ci-run-id", type=int)
+    parser.add_argument("--current-ci-run-number", type=int)
+    parser.add_argument("--current-ci-event")
+    parser.add_argument("--current-ci-conclusion")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+
+    current_ci = None
+    if args.current_ci_run_id is not None:
+        current_ci = {
+            "id": args.current_ci_run_id,
+            "run_number": args.current_ci_run_number,
+            "event": args.current_ci_event,
+            "head_sha": args.head_sha,
+            "conclusion": args.current_ci_conclusion,
+            "status": "completed",
+            "name": "workspace-ci",
+        }
 
     snapshot = build_snapshot(
         version=args.version_file.read_text(encoding="utf-8").strip(),
         head_sha=args.head_sha,
         release=json.loads(args.release_json.read_text(encoding="utf-8")),
         runs_payload=json.loads(args.runs_json.read_text(encoding="utf-8")),
+        current_ci=current_ci,
     )
     args.output.write_text(
         json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
