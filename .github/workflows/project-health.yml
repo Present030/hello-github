@@ -31,7 +31,9 @@ jobs:
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > latest-release.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" > workflow-runs.json
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&per_page=100" \
+            > workflow-runs.json
 
       - name: Re-run durable state and workflow security audits
         shell: bash

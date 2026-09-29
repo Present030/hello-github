@@ -71,6 +71,33 @@ class HealthSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["id"], 999)
 
 
+    def test_paginated_runs_find_older_critical_workflow(self) -> None:
+        first_page = runs()
+        first_page["workflow_runs"] = [
+            run
+            for run in first_page["workflow_runs"]
+            if run["name"] != "recovery-probe"
+        ]
+        recovery_probe = next(
+            run
+            for run in runs()["workflow_runs"]
+            if run["name"] == "recovery-probe"
+        )
+        snapshot = build_snapshot(
+            version="1.2.3",
+            head_sha=HEAD,
+            release=release(),
+            runs_payload=[
+                first_page,
+                {"workflow_runs": [recovery_probe]},
+            ],
+        )
+        self.assertEqual(snapshot["status"], "healthy")
+        self.assertEqual(
+            snapshot["workflow_evidence"]["recovery-probe"]["conclusion"],
+            "success",
+        )
+
     def test_release_drift_degrades_snapshot(self) -> None:
         payload = release()
         payload["tag_name"] = "v9.9.9"
