@@ -12,6 +12,12 @@ on:
       - "tools/check_site_links.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+    inputs:
+      permission_probe:
+        description: Verify Pages token cannot write repository contents
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -35,6 +41,40 @@ jobs:
 
       - name: Audit current tree for accidental public exposure
         run: python tools/audit_public_exposure.py
+      - name: Verify Pages token cannot write repository contents
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.permission_probe }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="__pages_permission_probe_${GITHUB_RUN_ID}"
+          ref="refs/heads/${branch}"
+
+          set +e
+          output="$(gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="$ref" \
+            -f sha="$GITHUB_SHA" 2>&1)"
+          code=$?
+          set -e
+
+          printf '%s\n' "$output"
+          if [[ "$code" -eq 0 ]]; then
+            echo "ERROR: contents write unexpectedly succeeded" >&2
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/git/refs/heads/${branch}" \
+              >/dev/null 2>&1 || true
+            exit 23
+          fi
+
+          if [[ "$output" != *"HTTP 403"* && "$output" != *"Resource not accessible by integration"* ]]; then
+            echo "ERROR: write failed for an unexpected reason" >&2
+            exit 24
+          fi
+
+          echo "PASS: Pages token with contents: read rejected Git ref creation"
 
       - name: Render website from repository state
         run: python tools/render_site.py
