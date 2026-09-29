@@ -158,3 +158,37 @@ jobs:
               f"byte-for-byte identically (sha256={digest})"
           )
           PY
+
+  gate:
+    name: workspace-ci gate
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - public-exposure
+      - test
+      - portable
+      - site-portability-compare
+    steps:
+      - name: Verify required jobs succeeded
+        shell: bash
+        env:
+          PUBLIC_EXPOSURE_RESULT: ${{ needs.public-exposure.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          PORTABLE_RESULT: ${{ needs.portable.result }}
+          SITE_PORTABILITY_COMPARE_RESULT: ${{ needs.site-portability-compare.result }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            "public-exposure=${PUBLIC_EXPOSURE_RESULT}" \
+            "test=${TEST_RESULT}" \
+            "portable=${PORTABLE_RESULT}" \
+            "site-portability-compare=${SITE_PORTABILITY_COMPARE_RESULT}"
+
+          for result in \
+            "$PUBLIC_EXPOSURE_RESULT" \
+            "$TEST_RESULT" \
+            "$PORTABLE_RESULT" \
+            "$SITE_PORTABILITY_COMPARE_RESULT"
+          do
+            test "$result" = success
+          done
