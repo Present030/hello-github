@@ -55,8 +55,12 @@ def build_snapshot(
 
     workflow_evidence: dict[str, Any] = {}
     all_evidence_success = True
+    payloads = runs_payload if isinstance(runs_payload, list) else [runs_payload]
     runs = [
-        run for run in runs_payload.get("workflow_runs", [])
+        run
+        for payload in payloads
+        if isinstance(payload, dict)
+        for run in payload.get("workflow_runs", [])
         if isinstance(run, dict)
     ]
     for name in CRITICAL_WORKFLOWS:
