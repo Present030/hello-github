@@ -44,6 +44,10 @@ jobs:
         shell: bash
         env:
           VERIFIED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          VERIFIED_CI_RUN_ID: ${{ github.event.workflow_run.id }}
+          VERIFIED_CI_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          VERIFIED_CI_EVENT: ${{ github.event.workflow_run.event }}
+          VERIFIED_CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
           python tools/build_health_snapshot.py \
@@ -51,6 +55,10 @@ jobs:
             --release-json latest-release.json \
             --runs-json workflow-runs.json \
             --head-sha "$VERIFIED_HEAD_SHA" \
+            --current-ci-run-id "$VERIFIED_CI_RUN_ID" \
+            --current-ci-run-number "$VERIFIED_CI_RUN_NUMBER" \
+            --current-ci-event "$VERIFIED_CI_EVENT" \
+            --current-ci-conclusion "$VERIFIED_CI_CONCLUSION" \
             --output project-health.json
 
       - name: Upload project health snapshot
