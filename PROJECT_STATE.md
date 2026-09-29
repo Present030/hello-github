@@ -1,18 +1,19 @@
 # Project State
 
-Last verified: 2026-09-23
+Last verified: 2026-09-29
 
 ## Purpose
 
-This private repository is a durable coordination point for experiments where ChatGPT reasoning, an ephemeral ChatGPT sandbox, the GitHub connector, and ephemeral GitHub Actions runners cooperate on a long-lived software project.
+This public repository is a durable coordination point for experiments where ChatGPT reasoning, an ephemeral ChatGPT sandbox, the GitHub connector, and ephemeral GitHub Actions runners cooperate on a long-lived software project.
 
 The repository is the source of truth. Temporary sandbox files and individual Actions runner filesystems are disposable.
 
 ## Current authoritative state
 
 - Default branch: `main`.
-- Repository visibility: private.
+- Repository visibility: public.
 - Automatic deletion of merged PR head branches: enabled and verified.
+- Active default-branch Ruleset: `main-protection` (PR required; deletion and force-push blocked; required check: `workspace-ci gate`; no bypass actors).
 - Current application version: `0.3.0`.
 - Latest verified release: `v0.3.0`.
 - `v0.3.0` target commit: `8e7b6fbc69de8fceb8afcfef468a501fa69f43e9`.
@@ -142,6 +143,7 @@ Verified releases include:
 - `v0.1.2`
 - `v0.2.0`
 - `v0.2.1`
+- `v0.3.0`
 
 The current `v0.3.0` assets are:
 
@@ -151,7 +153,7 @@ The current `v0.3.0` assets are:
 - `release-manifest.txt` — 335 bytes — SHA-256 `4de085701ff30ad02fcd81a015454fbdd88872609a204cb7136a93ecb29ce7e0`
 - `runtime-report.json` — 167 bytes — SHA-256 `0190cedf575e85633d480a19fea7ac314129cd6fbbae9df3766ef9671c3d1785`
 
-For private Release assets, the connector can read Release metadata and digests but could not directly download via `browser_download_url` in this experiment. The authenticated Release workflow therefore performs its own download-and-compare round trip. Actions artifacts remain directly downloadable through the dedicated connector action.
+The formal Release workflow performs its own authenticated download-and-compare round trip for all five assets. The `v0.3.0` workflow was also re-run successfully against the existing Release: it reused the Release, reproduced all five local artifacts, matched every published asset byte-for-byte, and left the existing asset timestamps unchanged. Actions artifacts remain directly downloadable through the connector's dedicated artifact action.
 
 ## Controlled Issue-driven workers
 
@@ -206,20 +208,42 @@ Official GitHub Actions are pinned to immutable full commit SHAs rather than mov
 
 CI and probe workflows have successfully executed after this pinning.
 
-## Observed platform/account boundaries
+## Repository protection, Pages permissions, and platform boundaries
 
 - The temporary ChatGPT Linux sandbox used in this experiment did not have direct outbound DNS/HTTPS access to GitHub.
 - GitHub access came through the authorized GitHub connector.
 - GitHub Actions is a separate execution environment and does have outbound network access.
+- The repository is now public.
+- Ruleset `main-protection` is active on the default branch. It requires pull requests, blocks deletion and non-fast-forward updates, and requires `workspace-ci gate`; there are no bypass actors.
+- A direct-write probe against `main` was rejected by GitHub, providing server-side evidence that the Ruleset is enforced.
+- The connector can read the Ruleset, while the legacy branch-protection detail endpoint still returns `403 Resource not accessible by integration` because the managed GitHub App lacks the required administration scope.
 - The connector currently exposes no direct `delete_ref` / `delete_branch` action.
 - The repository's `delete_branch_on_merge` setting is enabled and has been verified as the normal cleanup mechanism.
-- The connector currently exposes no general workflow-dispatch mutation, so fixed owner-created Issues are the controlled remote-task entry point used here.
+- The connector currently exposes no general workflow-dispatch mutation. Manual `workflow_dispatch` runs that require inputs are triggered through the GitHub UI.
 - GitHub code search can lag behind writes; exact file reads are the authoritative immediate check.
-- Reading `main` branch protection through the current integration returned `403 Resource not accessible by integration`.
-- Repository rulesets on this private repository returned GitHub's `403` message that GitHub Pro is required or the repository must be public.
-- Required-status-check enforcement is therefore not currently a server-side merge gate. CI-before-merge remains an explicit project convention.
 - GitHub does not permit the PR author to self-approve.
-- Native GitHub Artifact Attestations for private/internal repositories require GitHub Enterprise Cloud. In the current private-repository/account setup, native attestation/provenance is therefore unavailable without changing the plan or making the repository public.
+- Native GitHub Artifact Attestation is verified on the public repository: the dedicated probe generated provenance and `gh attestation verify` succeeded.
+- The Pages workflow's declared permissions are `contents: read`, `pages: write`, and `id-token: write`. In a controlled manual run, its token received HTTP 403 when attempting Git-ref creation, while Pages upload/deploy, byte-for-byte public-content verification, and published-link verification all succeeded.
+- The current pinned Pages actions use Node 24. The former Node 20 and `url.parse()` warnings are gone; `actions/deploy-pages v5.0.1` still emits one upstream `DEP0040` `punycode` deprecation warning, which is intentionally not hidden locally.
+
+## Project health and Pages verification
+
+`project-health` runs after a successful push-triggered `workspace-ci` on `main`. Two false-degraded edge cases were found and fixed during validation:
+
+- the Actions runs API could briefly lag the just-completed CI run, so the triggering `workflow_run` event is now authoritative for the current CI evidence;
+- limiting history to the first 100 Actions runs could hide an older critical workflow, so the workflow now paginates the complete run history before building the snapshot.
+
+The post-fix run on `main@af957d31623df8c4bb992435005c9bfe8a42c27c` completed successfully and printed:
+
+```text
+PROJECT_HEALTH=healthy
+```
+
+The final manual Pages permission-boundary run on the same commit completed successfully. The token's Git-ref creation attempt was rejected with HTTP 403, then the same job deployed Pages and verified the live HTML byte-for-byte against the rendered artifact. The verified HTML SHA-256 was:
+
+```text
+e00e0c552d2393d12fbd461dbdc29e49e07b3ce71e26a04b1cc46e5318807bab
+```
 
 ## Cold-start recovery
 
@@ -235,7 +259,7 @@ A new ChatGPT session can reconstruct the project without relying on a previous 
 8. relevant Actions runs,
 9. current Releases and asset metadata.
 
-A repository-only cold-start audit has already recovered the project purpose, run/build commands, CI model, private visibility, branch policy, recent history, and outstanding work successfully.
+A repository-only cold-start audit has already recovered the project purpose, run/build commands, CI model, repository visibility, branch policy, recent history, and outstanding work successfully.
 
 ## Durable model
 

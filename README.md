@@ -1,6 +1,6 @@
 # Hello GitHub — Persistent Workspace Lab
 
-This private repository is an experiment in using GitHub as the durable state and execution/control plane for an otherwise ephemeral ChatGPT working environment.
+This public repository is an experiment in using GitHub as the durable state and execution/control plane for an otherwise ephemeral ChatGPT working environment.
 
 ## Architecture
 
@@ -70,11 +70,12 @@ Changing `VERSION` on `main` triggers the release workflow. It:
 3. builds the zipapp twice and compares the bytes,
 4. verifies the zipapp's embedded `--version`,
 5. publishes tag `v<version>`,
-6. attaches `hello-github.pyz`, `runtime-report.json`, and `release-manifest.txt`,
-7. downloads the published assets again,
-8. byte-compares the downloaded files,
-9. executes the downloaded zipapp,
-10. re-verifies its version and runtime report.
+6. creates or reuses Release `v<version>`,
+7. publishes five formal assets: `hello-github.pyz`, `runtime-report.json`, `release-manifest.txt`, `hello-github.cdx.json`, and `hello-github-recovery.zip`,
+8. downloads the published assets again,
+9. byte-compares all five downloaded files,
+10. executes the downloaded zipapp and recovery verifier,
+11. re-verifies the version and runtime report.
 
 Latest verified release: **v0.3.0**.
 
@@ -89,6 +90,10 @@ Starting with v0.3.0, the formal Release also publishes a deterministic CycloneD
 (`hello-github.cdx.json`) and a deterministic self-verifying disaster-recovery bundle
 (`hello-github-recovery.zip`). The release workflow downloads and byte-compares all
 published assets and runs the downloaded recovery bundle verifier.
+
+The existing `v0.3.0` workflow was re-run successfully: it reused the existing Release,
+rebuilt the five local artifacts, verified them against the already-published assets, and
+did not replace or duplicate those assets.
 
 The release workflow verified:
 
@@ -124,10 +129,29 @@ The repository has exercised a full inline review loop where the initial Linux m
 
 GitHub correctly refuses self-approval of a pull request. Independent approval requires another GitHub identity.
 
-## Known boundaries
+## Repository protection and verified boundaries
 
-The current connector does not expose direct branch/ref deletion or arbitrary workflow-dispatch creation. Merged PR branches are instead removed using the repository's verified `delete_branch_on_merge` setting.
+The default branch is protected by the active repository Ruleset `main-protection`.
+Changes to `main` must go through a pull request, deletion and force-push are blocked,
+and the required status check is the stable `workspace-ci gate`. A controlled direct-write
+probe was rejected by GitHub, confirming that the rule is enforced server-side.
 
-For this private repository, native repository rulesets require a higher GitHub plan; required-status-check enforcement is therefore not currently a server-side merge gate. CI-before-merge is an explicit project convention.
+The Pages workflow uses only `contents: read`, `pages: write`, and `id-token: write`.
+A controlled probe using that same job token received HTTP 403 when attempting to create
+a Git ref, while the same run still uploaded and deployed the Pages artifact and verified
+the public page byte-for-byte.
+
+Native GitHub Artifact Attestation is also verified for this public repository: a fixed
+probe artifact was attested and then verified with `gh attestation verify`.
+
+The current connector still does not expose direct branch/ref deletion or arbitrary
+workflow-dispatch creation. Merged PR branches are normally removed by the repository's
+automatic head-branch deletion setting; exceptional stale branches may require a small
+manual cleanup in GitHub.
+
+The current official `actions/deploy-pages` release still emits one upstream Node
+`DEP0040` `punycode` deprecation warning. The older Node 20 and `url.parse()`
+warnings were removed by upgrading the pinned Pages actions; the remaining warning is
+not suppressed locally because that would hide, rather than fix, the upstream cause.
 
 For the detailed durable handoff and exact verified boundaries, see `PROJECT_STATE.md`.
