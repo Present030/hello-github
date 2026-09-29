@@ -134,6 +134,9 @@ jobs:
           path: formal-release/hello-github-recovery.zip
 
   site-cold-start:
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     steps:
       - name: Assert empty website workspace
@@ -151,33 +154,14 @@ jobs:
 
       - name: Discover public Pages URL
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          repository = os.environ["GITHUB_REPOSITORY"]
-          request = urllib.request.Request(
-              f"https://api.github.com/repos/{repository}/pages",
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "User-Agent": "hello-github-site-cold-start",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=20) as response:
-              payload = json.load(response)
-
-          page_url = payload["html_url"]
-          if not isinstance(page_url, str) or not page_url.startswith("https://"):
-              raise SystemExit(f"unexpected Pages URL: {page_url!r}")
-
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as stream:
-              stream.write(f"PAGES_URL={page_url}\n")
-
-          print(f"PAGES_URL={page_url}")
-          PY
+          page_url="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .html_url)"
+          [[ "$page_url" == https://* ]]
+          echo "PAGES_URL=$page_url" >> "$GITHUB_ENV"
+          echo "PAGES_URL=$page_url"
 
       - name: Recover current default-branch source
         shell: bash
