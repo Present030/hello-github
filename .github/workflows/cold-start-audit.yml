@@ -132,3 +132,131 @@ jobs:
         with:
           name: cold-start-formal-recovery
           path: formal-release/hello-github-recovery.zip
+
+  site-cold-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert empty website workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e VERSION
+          test ! -d .git
+          echo "PASS: website recovery starts without checked-out source"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+
+      - name: Discover public Pages URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{repository}/pages",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "hello-github-site-cold-start",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              payload = json.load(response)
+
+          page_url = payload["html_url"]
+          if not isinstance(page_url, str) or not page_url.startswith("https://"):
+              raise SystemExit(f"unexpected Pages URL: {page_url!r}")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as stream:
+              stream.write(f"PAGES_URL={page_url}\n")
+
+          print(f"PAGES_URL={page_url}")
+          PY
+
+      - name: Recover current default-branch source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          default_branch="$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)"
+          gh auth setup-git
+          gh repo clone "$GITHUB_REPOSITORY" source --             --depth=1             --branch "$default_branch"
+
+          source_sha="$(git -C source rev-parse HEAD)"
+          test -f source/VERSION
+          test -f source/site/index.html
+          test -f source/tools/render_site.py
+
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          echo "PASS: recovered current default branch $default_branch at $source_sha"
+
+      - name: Render website from recovered source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python source/tools/render_site.py             --template source/site/index.html             --version-file source/VERSION             --output recovered-site/index.html
+
+      - name: Verify recovered website matches public Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import os
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          expected = Path("recovered-site/index.html").read_bytes()
+          expected_sha = hashlib.sha256(expected).hexdigest()
+          page_url = os.environ["PAGES_URL"]
+          separator = "&" if "?" in page_url else "?"
+          probe_url = (
+              f"{page_url}{separator}cold_start={os.environ['SOURCE_SHA']}"
+          )
+
+          last_sha = None
+          for attempt in range(1, 11):
+              request = urllib.request.Request(
+                  probe_url,
+                  headers={
+                      "Cache-Control": "no-cache",
+                      "User-Agent": "hello-github-site-cold-start",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      actual = response.read()
+              except Exception as exc:
+                  print(
+                      f"Attempt {attempt}/10: fetch failed: "
+                      f"{type(exc).__name__}"
+                  )
+              else:
+                  last_sha = hashlib.sha256(actual).hexdigest()
+                  if actual == expected:
+                      print(
+                          "PASS: cold-start recovered website matches public "
+                          f"Pages byte-for-byte (sha256={expected_sha})"
+                      )
+                      raise SystemExit(0)
+                  print(
+                      f"Attempt {attempt}/10: live sha256={last_sha}; "
+                      f"expected sha256={expected_sha}"
+                  )
+
+              if attempt < 10:
+                  time.sleep(3)
+
+          raise SystemExit(
+              "Public Pages did not match the cold-start recovered website; "
+              f"expected={expected_sha} last={last_sha}"
+          )
+          PY
