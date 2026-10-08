@@ -148,7 +148,7 @@ class PublicStatusTests(unittest.TestCase):
     def test_public_status_workflow_wiring_and_no_untrusted_checkout(self):
         root = Path(__file__).resolve().parents[1]
         wf = (root / ".github/workflows/pages.yml").read_text(encoding="utf-8")
-        self.assertIn('workflows: ["project-health"]', wf)
+        self.assertIn('workflows: ["project-health", "release"]', wf)
         self.assertIn('ref: main', wf)
         self.assertIn("actions: read", wf)
         self.assertIn("github.event.workflow_run.name == 'project-health'", wf)
