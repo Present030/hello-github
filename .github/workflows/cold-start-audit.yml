@@ -244,3 +244,13 @@ jobs:
               f"expected={expected_sha} last={last_sha}"
           )
           PY
+
+      - name: Verify recovered website in real Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome
+          python source/tools/check_site_browser.py \
+            --site recovered-site/index.html \
+            --version-file source/VERSION \
+            --public-url "$PAGES_URL"
