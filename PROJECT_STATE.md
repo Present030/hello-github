@@ -295,7 +295,7 @@ The `Deploy website to GitHub Pages` workflow now publishes
 On Pages deployment, the workflow checks out **current `main`**, lists completed
 `project-health` workflow runs, and selects only the latest run whose
 `head_sha` matches that checked-out commit. It downloads the
-`project-health` artifact with job-scoped minimal required read access
+`project-health` artifact using the Pages workflow's explicit read permission
 (`actions: read`) and passes it to `tools/build_public_status.py`.
 
 The exporter permits only a fixed set of keys: overall status, version,
