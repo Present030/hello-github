@@ -225,5 +225,181 @@
       <a id="health-evidence" hidden rel="noopener noreferrer" target="_blank">查看健康快照运行记录</a>
     </p>
   </main>
+  <script>
+    (() => {
+      "use strict";
+      const root = "https://github.com/Present030/hello-github/actions/runs/";
+      const version = document.getElementById("version-value").textContent.slice(1);
+      const overview = document.getElementById("status-overview");
+      const meta = document.getElementById("status-meta");
+      const sourceLink = document.getElementById("health-evidence");
+      const names = ["ci", "release", "recovery", "sbom"];
+      const keys = {
+        ci: "workspace-ci",
+        release: "release-integrity",
+        recovery: "cold-start-audit",
+        sbom: "sbom-probe"
+      };
+      let last = null;
+
+      function validId(value) {
+        return Number.isSafeInteger(value) && value > 0;
+      }
+
+      function timestamp(value) {
+        if (typeof value !== "string" || !value.trim()) return null;
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+
+      function when(value) {
+        const time = timestamp(value);
+        return time === null ? "时间未知" : new Date(time).toLocaleString("zh-CN");
+      }
+
+      function evidence(name, data) {
+        const item = data && data.workflows && data.workflows[keys[name]];
+        return item && typeof item === "object" && validId(item.run_id) ? item : null;
+      }
+
+      function card(name, label, detail, record) {
+        document.getElementById(name + "-value").textContent = label;
+        document.getElementById(name + "-detail").textContent = detail;
+        const link = document.getElementById(name + "-evidence");
+        if (record && validId(record.run_id)) {
+          link.href = root + record.run_id;
+          link.hidden = false;
+        } else {
+          link.removeAttribute("href");
+          link.hidden = true;
+        }
+      }
+
+      function unknown(message) {
+        overview.textContent = "项目状态：未知";
+        meta.textContent = message;
+        sourceLink.hidden = true;
+        sourceLink.removeAttribute("href");
+        names.forEach((name) => card(name, "未知", message, null));
+      }
+
+      function passed(record) {
+        return record && record.conclusion === "success"
+          && (record.state === "current" || record.state === "historical");
+      }
+
+      function failed(record) {
+        return record && (record.state === "failed"
+          || (typeof record.conclusion === "string" && record.conclusion !== "success"
+              && record.conclusion !== "skipped"));
+      }
+
+      function render(data) {
+        if (!data || data.schema !== "hello-github-public-status/v1"
+            || (data.status !== "healthy" && data.status !== "degraded")
+            || typeof data.head_sha !== "string" || !/^[0-9a-f]{40}$/.test(data.head_sha)
+            || !validId(data.source_run_id)) {
+          unknown("无法确认公开状态数据");
+          return;
+        }
+
+        const generated = timestamp(data.source_generated_at);
+        const expires = timestamp(data.expires_at);
+        const now = Date.now();
+        if (generated === null || expires === null || generated > now + 300000
+            || expires <= now || expires <= generated
+            || expires > generated + 30 * 86400000 + 60000) {
+          unknown("状态证据已过期或时间无效");
+          return;
+        }
+        if (data.version !== null && data.version !== version) {
+          unknown("网页版本与状态快照不一致");
+          return;
+        }
+
+        overview.textContent = data.status === "healthy"
+          ? "项目状态：健康（快照时）" : "项目状态：存在异常（快照时）";
+        meta.textContent = "快照：" + when(data.source_generated_at) + " · 非实时监控";
+        sourceLink.href = root + data.source_run_id;
+        sourceLink.hidden = false;
+
+        const ci = evidence("ci", data);
+        if (ci && ci.head_sha === data.head_sha && ci.state === "current"
+            && ci.conclusion === "success" && data.checks
+            && data.checks.current_main_ci === true) {
+          card("ci", "通过", "当前提交 · " + when(ci.observed_at), ci);
+        } else if (failed(ci) || (data.checks && data.checks.current_main_ci === false)) {
+          card("ci", "未通过", "主分支 CI 不能证明成功", ci);
+        } else {
+          card("ci", "未知", "缺少当前提交的 CI 成功证据", ci);
+        }
+
+        const integrity = evidence("release", data);
+        const tag = "v" + version;
+        if (data.checks && data.checks.release_alignment === false) {
+          card("release", "不一致", "VERSION 与 Release 元数据不一致", integrity);
+        } else if (data.release && data.release.tag === tag && data.checks
+                   && data.checks.release_alignment === true && passed(integrity)) {
+          card("release", integrity.state === "current" ? "已验证" : "历史验证",
+            "正式发布元数据匹配 · " + when(integrity.observed_at)
+              + (integrity.state === "historical" ? " · 历史提交" : ""), integrity);
+        } else if (failed(integrity)) {
+          card("release", "未通过", "最近发布完整性检查失败", integrity);
+        } else {
+          card("release", "未知", "正式发布尚无充分验证证据", integrity);
+        }
+
+        const recovery = evidence("recovery", data);
+        if (data.release && data.release.has_recovery_bundle === false) {
+          card("recovery", "未包含", "发布资产中缺少恢复包", recovery);
+        } else if (data.release && data.release.has_recovery_bundle === true
+                   && passed(recovery)) {
+          card("recovery", recovery.state === "current" ? "通过" : "历史通过",
+            "冷启动实验 · " + when(recovery.observed_at)
+              + (recovery.state === "historical" ? " · 历史提交" : ""), recovery);
+        } else if (failed(recovery)) {
+          card("recovery", "未通过", "最近冷启动恢复检查失败", recovery);
+        } else {
+          card("recovery", "未知", "缺少可信的冷启动恢复记录", recovery);
+        }
+
+        const sbom = evidence("sbom", data);
+        if (data.release && data.release.tag === tag
+            && data.release.has_sbom === true) {
+          card("sbom", "已包含", "Release 资产清单包含 SBOM；并非实时校验", sbom);
+        } else if (data.release && data.release.tag === tag
+                   && data.release.has_sbom === false) {
+          card("sbom", "未包含", "正式 Release 缺少 SBOM", sbom);
+        } else {
+          card("sbom", "未知", "未能核对当前版本的 SBOM 资产", sbom);
+        }
+      }
+
+      async function refresh() {
+        try {
+          const response = await fetch("./status.json?checked=" + Date.now(), {
+            cache: "no-store"
+          });
+          if (!response.ok) throw new Error("status HTTP failure");
+          last = await response.json();
+          render(last);
+        } catch (_) {
+          last = null;
+          unknown("无法读取公开状态数据");
+        }
+      }
+
+      unknown("正在读取公开状态数据");
+      refresh();
+      setInterval(refresh, 5 * 60 * 1000);
+      setInterval(() => { if (last !== null) render(last); }, 60 * 1000);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          if (last !== null) render(last);
+          refresh();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
