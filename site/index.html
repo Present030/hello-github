@@ -316,6 +316,17 @@
           unknown("网页版本与状态快照不一致");
           return;
         }
+        // Recheck the most important relationship in the browser. Even a
+        // malformed/cached payload that claims healthy must not appear green.
+        const claimedCi = evidence("ci", data);
+        if (data.status === "healthy" && (
+            !data.checks || data.checks.current_main_ci !== true
+            || data.checks.release_alignment !== true
+            || !claimedCi || claimedCi.head_sha !== data.head_sha
+            || claimedCi.state !== "current" || claimedCi.conclusion !== "success")) {
+          unknown("公开快照的健康结论与 CI 证据不一致");
+          return;
+        }
 
         overview.textContent = data.status === "healthy"
           ? "项目状态：健康（快照时）" : "项目状态：存在异常（快照时）";
