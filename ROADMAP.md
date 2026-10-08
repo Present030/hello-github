@@ -14,7 +14,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 
 ## P1 — Publication and operational closure
 
-- [ ] **06. Coordinate Release and Pages version propagation.** Confirm that VERSION-triggered Pages deployment cannot falsely report an unverified or unavailable Release. Verify release-first behavior or explicit pending status.
+- [x] **06. Coordinate Release and Pages version propagation.** Confirm that VERSION-triggered Pages deployment cannot falsely report an unverified or unavailable Release. Verify release-first behavior or explicit pending status.
 - [ ] **07. Verify propagation on the next real version release.** Check `VERSION → Release → SBOM → recovery bundle → Pages → live links`. Do not fabricate a version solely for this experiment.
 - [ ] **08. Attest formal Release artifacts.** Extend the already-proven native Artifact Attestation probe to formal deliverables and verify the published provenance independently.
 - [ ] **09. Expand unattended integrity checks.** Ensure periodic checks cover all formal Release assets, provenance, and selected recovery paths, not only the executable zipapp.
