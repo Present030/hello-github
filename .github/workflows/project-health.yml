@@ -43,6 +43,7 @@ jobs:
           python tools/audit_workflow_security.py
 
       - name: Build project health snapshot
+        id: build_health
         shell: bash
         env:
           VERIFIED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -66,6 +67,9 @@ jobs:
             --output project-health.json
 
       - name: Upload project health snapshot
+        # A degraded snapshot intentionally fails the builder, but the JSON
+        # must still be published for Pages and diagnostics.
+        if: ${{ always() && steps.build_health.outcome != 'skipped' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: project-health

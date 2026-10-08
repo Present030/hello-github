@@ -1,0 +1,33 @@
+# A single writer handles verified main-branch workflow outcomes.
+# Do not checkout or execute the triggering run's code/artifacts.
+name: incident-monitor
+
+on:
+  workflow_run:
+    workflows: ["workspace-ci", "project-health", "release", "Deploy website to GitHub Pages", "cold-start-audit"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: incident-${{ github.event.workflow_run.workflow_id }}
+  cancel-in-progress: false
+
+jobs:
+  incidents:
+    if: ${{ github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout protected main only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Deduplicate failure and close verified recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/incident_monitor.py --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"

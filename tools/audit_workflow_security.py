@@ -27,6 +27,7 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
         "issues": "write",
     },
     "health-check.yml": {"contents": "read", "issues": "write"},
+    "incident-monitor.yml": {"actions": "read", "contents": "read", "issues": "write"},
     "recovery-probe.yml": {"contents": "read"},
     "sbom-probe.yml": {"contents": "read"},
     "recovery-bundle.yml": {"contents": "read"},
@@ -281,6 +282,17 @@ def audit_workflow(
                 "github.event.workflow_run.head_branch == 'main'",
                 "needs.release-ready.outputs.ready == 'true'",
                 "tools/check_release_readiness.py",
+            )
+        elif path.name == "incident-monitor.yml":
+            # This workflow handles failures as well as success, but only reads
+            # protected main; the event payload is data, never executable code.
+            required_guards = (
+                'workflows: ["workspace-ci", "project-health", "release", "Deploy website to GitHub Pages", "cold-start-audit"]',
+                "github.event.workflow_run.head_branch == 'main'",
+                "github.event.workflow_run.head_repository.full_name == github.repository",
+                "ref: main",
+                "persist-credentials: false",
+                "tools/incident_monitor.py",
             )
         else:
             required_guards = (
