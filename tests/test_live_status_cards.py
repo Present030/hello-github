@@ -24,9 +24,8 @@ NOW = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
 
 NODE_HARNESS = r"""
 const vm = require("node:vm");
-const fs = require("node:fs");
 const payload = JSON.parse(process.env.TEST_PAYLOAD);
-const src = fs.readFileSync(0, "utf8");
+const src = process.env.TEST_SCRIPT;
 let clock = payload.clock;
 const intervals = [];
 const events = {};
@@ -134,10 +133,13 @@ class LiveStatusCardsTests(unittest.TestCase):
         payload = {"clock": int(NOW.timestamp() * 1000), "document": data, **flags}
         process = subprocess.run(
             [self.node, "-e", NODE_HARNESS],
-            input=self.script,
             text=True,
             capture_output=True,
-            env={**os.environ, "TEST_PAYLOAD": json.dumps(payload)},
+            env={
+                **os.environ,
+                "TEST_PAYLOAD": json.dumps(payload),
+                "TEST_SCRIPT": self.script,
+            },
             check=False,
             timeout=15,
         )
