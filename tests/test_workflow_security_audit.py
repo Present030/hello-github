@@ -131,13 +131,13 @@ jobs:
         )
         self.assertTrue(any("permissions" in item and "!= policy" in item for item in excess))
 
-    def test_pages_requires_explicit_project_health_event_guard(self) -> None:
+    def test_pages_requires_both_trusted_triggers_and_release_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             payload = """name: Deploy website to GitHub Pages
 on:
   workflow_run:
-    workflows: ["project-health"]
+    workflows: ["project-health", "release"]
     types: [completed]
 permissions:
   actions: read
@@ -145,34 +145,60 @@ permissions:
   pages: write
   id-token: write
 jobs:
-  deploy:
-    if: ${{ github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main' }}
-    runs-on: ubuntu-latest
+  release-ready:
+    if: ${{ github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.name == 'release' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: read
     steps:
       - run: echo safe
+  deploy:
+    needs: release-ready
+    if: ${{ needs.release-ready.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/check_release_readiness.py
 """
             path = write_workflow(root, "pages.yml", payload)
             permissions = {
                 "actions": "read", "contents": "read",
                 "pages": "write", "id-token": "write",
             }
+            job_permissions = {
+                "release-ready": {"actions": "read", "contents": "read"},
+            }
             self.assertEqual(
                 security.audit_workflow(
-                    path, expected_permissions=permissions, root=root
+                    path, expected_permissions=permissions,
+                    expected_job_permissions=job_permissions, root=root,
                 ),
                 [],
             )
-            unsafe = payload.replace(
-                "github.event.workflow_run.head_branch == 'main'",
-                "github.event.workflow_run.head_branch != 'main'",
-            )
-            path.write_text(unsafe, encoding="utf-8")
-            self.assertTrue(
-                any("workflow_run lacks required guard" in item
-                    for item in security.audit_workflow(
-                        path, expected_permissions=permissions, root=root
-                    ))
-            )
+            for name, unsafe in (
+                ("missing main gate", payload.replace(
+                    "github.event.workflow_run.head_branch == 'main'",
+                    "github.event.workflow_run.head_branch != 'main'",
+                )),
+                ("missing Release success", payload.replace(
+                    "github.event.workflow_run.conclusion == 'success'",
+                    "github.event.workflow_run.conclusion != 'success'",
+                )),
+                ("missing readiness check", payload.replace(
+                    "needs.release-ready.outputs.ready == 'true'",
+                    "needs.release-ready.outputs.ready != 'true'",
+                )),
+                ("elevated readiness token", payload.replace(
+                    "    permissions:\\n      actions: read\\n      contents: read",
+                    "    permissions:\\n      actions: write\\n      contents: read",
+                )),
+            ):
+                with self.subTest(name=name):
+                    path.write_text(unsafe, encoding="utf-8")
+                    findings = security.audit_workflow(
+                        path, expected_permissions=permissions,
+                        expected_job_permissions=job_permissions, root=root,
+                    )
+                    self.assertTrue(findings, name)
 
     def test_workflow_run_requires_main_push_success_guards(self) -> None:
         findings = self.audit(
