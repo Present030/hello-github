@@ -59,6 +59,11 @@ def verify_recovery(
 ) -> None:
     if not SEMVER.fullmatch(version) or not re.fullmatch(r"[0-9a-f]{40}", target_commit):
         raise ValueError("invalid version or Release target")
+    # The recovered verify.py runs with cwd=target_dir; both the script
+    # location and the cwd must use absolute paths to avoid doubling a
+    # relative directory prefix on real GitHub-hosted runners.
+    release_dir = release_dir.resolve()
+    target_dir = target_dir.resolve()
     bundle = release_dir / "hello-github-recovery.zip"
     with ZipFile(bundle) as archive:
         members = archive.infolist()

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -74,6 +77,30 @@ class UnattendedReleaseTests(unittest.TestCase):
     def test_offline_recovery_is_verified_from_published_files(self):
         self.verify()
         self.assertTrue((self.root / "offline-output" / "verify.py").is_file())
+
+    def test_real_cli_with_relative_output_path(self):
+        # The earlier weekly run failed because the relative output folder was
+        # prefixed twice when the extracted verifier inherited its own cwd.
+        (self.root / "VERSION").write_text("0.3.0\n", encoding="utf-8")
+        (self.root / "metadata.json").write_text(
+            json.dumps({"target_commitish": TARGET}), encoding="utf-8"
+        )
+        command = Path(__file__).resolve().parents[1] / "tools/verify_unattended_release.py"
+        process = subprocess.run(
+            [
+                sys.executable, str(command),
+                "--version-file", "VERSION",
+                "--release-dir", "formal-release",
+                "--release-json", "metadata.json",
+                "--output-dir", "verified-offline-recovery",
+                "--repository", REPOSITORY,
+            ],
+            cwd=self.root, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=45, check=False,
+        )
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertIn("PASS: offline recovery contains", process.stdout)
+        self.assertTrue((self.root / "verified-offline-recovery" / "verify.py").is_file())
 
     def test_legacy_witness_and_future_build_signer_cannot_mix(self):
         self.assertEqual(expected_signer("0.3.0"), "formal-release-attestation.yml")

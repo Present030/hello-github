@@ -106,7 +106,7 @@ jobs:
             --release-dir formal-release \
             --release-json formal-release.json \
             --repository "$GITHUB_REPOSITORY" \
-            --output-dir verified-offline-recovery
+            --output-dir "$RUNNER_TEMP/verified-offline-recovery"
           echo "PASS: unattended five-asset provenance and offline recovery checks complete"
 
       - name: Open or update health-check failure Issue
