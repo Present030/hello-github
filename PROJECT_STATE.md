@@ -382,6 +382,44 @@ accessibility acceptance remain separate ROADMAP item 12. Real failing-main
 CI delivery is not deliberately triggered here: the failure outcome is
 validated with an isolated synthetic status feed.
 
+### Verified Release prerequisite for Pages deployment (2026-10-08)
+
+`VERSION` changes trigger `release` and Pages workflows independently; without
+coordination, the website could point to a future Release before artifacts
+exist or before formal round-trip verification completes.
+
+Pages now has a separate `release-ready` job with **only**
+`actions: read` and `contents: read`. Its deterministic gate checks the
+checked-out `main` VERSION against the formal, non-draft, non-prerelease
+tag; requires the five formal assets to be uploaded with positive sizes and
+complete GitHub SHA-256 digests; and requires a **successfully completed
+`release` workflow run** for the exact Release target commit. A successful
+CI run is not interchangeable with a successfully verified Release.
+
+When the Release is missing, incomplete, still being verified, or its
+metadata cannot be fetched, the readiness job succeeds with `ready=false`
+and the Pages `deploy` job is **skipped**, leaving the previously published
+site in place. It does not ship a broken new-version download link or
+misrepresent pending Release verification as a success. A later successful
+main-branch `release` workflow completion triggers Pages again, in addition
+to the existing site changes, health workflow completions, daily refresh
+and manual trigger. Non-main and non-successful Release completions are
+not accepted as publication signals.
+
+Pages also compares the actual checked-out `main` SHA to the SHA assessed
+by the readiness job before uploading any site content. The Pages HTML,
+public JSON, byte-for-byte comparisons and Chrome smoke tests remain intact.
+No artificial VERSION bump is required for the regression tests.
+
+**Boundary:** the first *real* version upgrade still requires end-to-end
+verification of the full propagation chain (ROADMAP 07). The current state
+audit also requires README and PROJECT_STATE Release metadata, including
+the executable digest, to be synchronized after the actual new Release.
+Until a valid fresh health snapshot exists, the public status must remain
+`unknown` rather than claiming current verification. The previously
+published version may remain online during a pending Release; this is
+intentional conservative behavior, not a claim that the new version shipped.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:

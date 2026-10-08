@@ -54,6 +54,9 @@ EXPECTED_JOB_PERMISSIONS: dict[str, dict[str, dict[str, str]]] = {
     "cold-start-audit.yml": {
         "site-cold-start": {"contents": "read", "pages": "read"},
     },
+    "pages.yml": {
+        "release-ready": {"actions": "read", "contents": "read"},
+    },
 }
 
 BANNED_TRIGGERS = ("pull_request_target",)
@@ -252,10 +255,15 @@ def audit_workflow(
             # Pages consumes trusted project-health outcomes (including failed
             # main CI), never a generic PR or user-selected workflow artifact.
             required_guards = (
-                'workflows: ["project-health"]',
+                'workflows: ["project-health", "release"]',
                 "github.event.workflow_run.name == 'project-health'",
                 "github.event.workflow_run.event == 'workflow_run'",
+                "github.event.workflow_run.name == 'release'",
+                "github.event.workflow_run.event == 'push'",
+                "github.event.workflow_run.conclusion == 'success'",
                 "github.event.workflow_run.head_branch == 'main'",
+                "needs.release-ready.outputs.ready == 'true'",
+                "tools/check_release_readiness.py",
             )
         else:
             required_guards = (
