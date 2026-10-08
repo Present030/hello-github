@@ -25,7 +25,7 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
-      padding: 24px;
+      padding: clamp(10px, 4vw, 24px);
       background:
         radial-gradient(circle at top, rgba(127, 127, 127, 0.12), transparent 38%),
         Canvas;
@@ -34,7 +34,7 @@
 
     main {
       width: min(860px, 100%);
-      padding: clamp(28px, 6vw, 56px);
+      padding: clamp(18px, 6vw, 56px);
       border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
       border-radius: 24px;
       background: color-mix(in srgb, Canvas 94%, CanvasText 6%);
@@ -43,8 +43,9 @@
 
     h1 {
       margin: 0 0 16px;
-      font-size: clamp(2.4rem, 8vw, 4.8rem);
-      line-height: 0.95;
+      font-size: clamp(1.8rem, 8vw, 4.8rem);
+      overflow-wrap: anywhere;
+      line-height: 1.08;
       letter-spacing: -0.055em;
     }
 
@@ -71,6 +72,31 @@
       text-decoration-color: currentColor;
     }
 
+    /* Keep keyboard navigation visible in both light and dark themes. */
+    a:focus-visible {
+      outline: 3px solid CanvasText;
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 2;
+      padding: 10px 14px;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    .skip-link:not(:focus) {
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
     .eyebrow {
       margin-bottom: 18px;
       font-size: 0.82rem;
@@ -90,6 +116,7 @@
       display: flex;
       align-items: baseline;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 16px;
       margin-bottom: 16px;
     }
@@ -101,7 +128,7 @@
 
     .status-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
       gap: 12px;
     }
 
@@ -157,7 +184,8 @@
   </style>
 </head>
 <body>
-  <main>
+  <a class="skip-link" href="#content">跳转到主要内容</a>
+  <main id="content">
     <div class="eyebrow">Persistent Workspace Lab</div>
     <h1>hello-github</h1>
     <p>
@@ -184,32 +212,32 @@
           <span class="status-label">CI</span>
           <span class="status-value" id="ci-value">未知</span>
           <span class="status-detail" id="ci-detail">等待公开状态证据</span>
-          <a class="evidence" id="ci-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
+          <a class="evidence" id="ci-evidence" aria-label="查看 CI 验证记录" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">Release</span>
           <span class="status-value" id="release-value">未知</span>
           <span class="status-detail" id="release-detail">等待公开状态证据</span>
-          <a class="evidence" id="release-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
+          <a class="evidence" id="release-evidence" aria-label="查看 Release 验证记录" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">Recovery</span>
           <span class="status-value" id="recovery-value">未知</span>
           <span class="status-detail" id="recovery-detail">等待公开状态证据</span>
-          <a class="evidence" id="recovery-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
+          <a class="evidence" id="recovery-evidence" aria-label="查看 Recovery 验证记录" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">SBOM</span>
           <span class="status-value" id="sbom-value">未知</span>
           <span class="status-detail" id="sbom-detail">等待公开状态证据</span>
-          <a class="evidence" id="sbom-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
+          <a class="evidence" id="sbom-evidence" aria-label="查看 SBOM 验证记录" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
       </div>
 
-      <nav class="links" aria-label="Project links">
+      <nav class="links" aria-label="项目链接">
         <a href="https://github.com/Present030/hello-github">源码仓库</a>
         <a href="https://github.com/Present030/hello-github/releases/tag/v{{VERSION}}">v{{VERSION}} Release</a>
         <a href="https://github.com/Present030/hello-github/actions">Actions</a>
@@ -222,7 +250,7 @@
       版本号和下载链接在部署时由 VERSION 生成；其他状态读取
       <a href="./status.json">公开状态 JSON</a>。
       历史验证不代表当前提交已通过；过期、网络异常或不匹配时显示“未知”。
-      <a id="health-evidence" hidden rel="noopener noreferrer" target="_blank">查看健康快照运行记录</a>
+      <a id="health-evidence" aria-label="查看项目健康快照运行记录" hidden rel="noopener noreferrer" target="_blank">查看健康快照运行记录</a>
     </p>
   </main>
   <script>
