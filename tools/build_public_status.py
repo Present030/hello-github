@@ -52,14 +52,14 @@ def clean_evidence(value: Any, *, failed_ci: bool = False) -> dict[str, Any] | N
     run_id = value.get("id")
     state = value.get("state")
     conclusion = value.get("conclusion")
-    if failed_ci and state is None and conclusion in CONCLUSIONS - {"success"}:
+    if failed_ci and state is None and isinstance(conclusion, str) and conclusion in CONCLUSIONS - {"success"}:
         state = "failed"
     observed = timestamp(value.get("observed_at"))
     head = value.get("head_sha")
     if (
         type(run_id) is not int or run_id <= 0
-        or state not in STATES
-        or conclusion not in CONCLUSIONS
+        or not isinstance(state, str) or state not in STATES
+        or not isinstance(conclusion, str) or conclusion not in CONCLUSIONS
         or not isinstance(head, str) or not SHA.fullmatch(head)
     ):
         return None
@@ -109,7 +109,7 @@ def build_public_status(
         return public
 
     generated = timestamp(snapshot.get("generated_at"))
-    if snapshot.get("schema") != SOURCE_SCHEMA or snapshot.get("snapshot_kind") not in KINDS:
+    if snapshot.get("schema") != SOURCE_SCHEMA or not isinstance(snapshot.get("snapshot_kind"), str) or snapshot["snapshot_kind"] not in KINDS:
         public["reason"] = "invalid_schema"
         return public
     if snapshot.get("head_sha") != main_sha:
@@ -128,7 +128,7 @@ def build_public_status(
 
     status = snapshot.get("status")
     kind = snapshot["snapshot_kind"]
-    if status not in {"healthy", "degraded"}:
+    if not isinstance(status, str) or status not in {"healthy", "degraded"}:
         public["reason"] = "invalid_status"
         return public
     if (kind == "ci_failure" and status != "degraded") or (
