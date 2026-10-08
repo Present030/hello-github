@@ -245,6 +245,46 @@ The final manual Pages permission-boundary run on the same commit completed succ
 e00e0c552d2393d12fbd461dbdc29e49e07b3ce71e26a04b1cc46e5318807bab
 ```
 
+### Health evidence relationship and freshness policy (2026-10-08)
+
+The `project-health` snapshot is a **point-in-time** assessment generated after a
+completed push-triggered `workspace-ci` run on `main`. It is not a live monitoring
+service; without a new snapshot, an old JSON artifact does not refresh itself.
+
+Each required workflow entry records the GitHub Actions run ID, conclusion,
+commit SHA, completion/update timestamp (`observed_at`), age, commit
+`relation`, `freshness`, and derived `state`:
+
+- `current`: successful, no older than **30 days**, with a commit SHA matching the
+  triggering `main` CI commit. Only the triggering push CI can prove the current
+  main CI gate, since ordinary probes and Pages run on separate triggers.
+- `historical`: successful and within 30 days, but run against an older commit.
+  This is supporting evidence **only**, not proof that the current `main`
+  revision or current `v0.3.0` Release was tested by that workflow.
+- `stale`: otherwise successful evidence older than 30 days.
+- `unknown`: no completed run, missing/invalid timestamp or SHA, or
+  timestamps too far in the future.
+- `failed`: a recent completed run whose conclusion is not `success`.
+
+An overall `healthy` result now requires: a successful fresh CI event for the
+current `main` commit; `VERSION` agreement with the latest Release metadata;
+and no required workflow evidence missing, failing, unknown, or stale. Recent
+**historical** probe evidence is permitted but remains explicitly labeled
+`historical`, never `current`.
+
+The required workflow set also includes `cold-start-audit` and
+`Deploy website to GitHub Pages`, in addition to CI, weekly health-check and
+the existing release/recovery probes. The Pages run is tied to the commit
+containing the deployed site, not necessarily today's `main` HEAD. Historical
+recovery probes can intentionally exercise `v0.2.1`; success alone must not
+be interpreted as a fresh recovery test of `v0.3.0`.
+
+When a workflow ages beyond 30 days without a new qualifying run, the **next**
+health snapshot becomes `degraded`. The separate failure-only snapshot from
+item 01 retains its evidence of non-success main CI and does not pretend the
+other audits were executed. A future public status feed must evaluate snapshot
+age at viewing time and avoid publishing an old `healthy` as live status.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
