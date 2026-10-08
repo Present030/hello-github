@@ -88,6 +88,25 @@ jobs:
         run: python -c "import hashlib, pathlib; print('ZIPAPP_SHA256=' + hashlib.sha256(pathlib.Path('dist/hello-github-a.pyz').read_bytes()).hexdigest())"
 
 
+  browser-e2e:
+    name: browser E2E (Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - name: Verify browser runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome
+          google-chrome --version
+      - name: Render real website
+        run: python tools/render_site.py
+      - name: Exercise real browser with success and failure status fixtures
+        run: python tools/check_site_browser.py --site dist/site/index.html
+
   site-portability:
     name: site portability (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -168,6 +187,7 @@ jobs:
       - test
       - portable
       - site-portability-compare
+      - browser-e2e
     steps:
       - name: Verify required jobs succeeded
         shell: bash
@@ -176,19 +196,22 @@ jobs:
           TEST_RESULT: ${{ needs.test.result }}
           PORTABLE_RESULT: ${{ needs.portable.result }}
           SITE_PORTABILITY_COMPARE_RESULT: ${{ needs.site-portability-compare.result }}
+          BROWSER_E2E_RESULT: ${{ needs.browser-e2e.result }}
         run: |
           set -euo pipefail
           printf '%s\n' \
             "public-exposure=${PUBLIC_EXPOSURE_RESULT}" \
             "test=${TEST_RESULT}" \
             "portable=${PORTABLE_RESULT}" \
-            "site-portability-compare=${SITE_PORTABILITY_COMPARE_RESULT}"
+            "site-portability-compare=${SITE_PORTABILITY_COMPARE_RESULT}" \
+            "browser-e2e=${BROWSER_E2E_RESULT}"
 
           for result in \
             "$PUBLIC_EXPOSURE_RESULT" \
             "$TEST_RESULT" \
             "$PORTABLE_RESULT" \
-            "$SITE_PORTABILITY_COMPARE_RESULT"
+            "$SITE_PORTABILITY_COMPARE_RESULT" \
+            "$BROWSER_E2E_RESULT"
           do
             test "$result" = success
           done
