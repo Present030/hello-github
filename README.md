@@ -59,7 +59,7 @@ The main CI verifies:
 - Source and zipapp JSON reports agree.
 - Cross-platform builds produce a stable reproducible artifact.
 
-Official GitHub Actions are pinned to immutable full commit SHAs rather than movable major-version tags.
+Official GitHub Actions are pinned to immutable full commit SHAs rather than movable major-version tags. The pinned artifact upload/download Actions were refreshed to v7.0.2/v8.0.2 on 2026-10-08; a monthly Dependabot check proposes future update PRs for review (never auto-merged).
 
 ## Releases
 
@@ -157,9 +157,11 @@ workflow-dispatch creation. Merged PR branches are normally removed by the repos
 automatic head-branch deletion setting; exceptional stale branches may require a small
 manual cleanup in GitHub.
 
-The current official `actions/deploy-pages` release still emits one upstream Node
-`DEP0040` `punycode` deprecation warning. The older Node 20 and `url.parse()`
-warnings were removed by upgrading the pinned Pages actions; the remaining warning is
-not suppressed locally because that would hide, rather than fix, the upstream cause.
+The current official `actions/deploy-pages v5.0.1` release still emits the
+upstream Node `DEP0040` `punycode` warning. The latest
+`actions/download-artifact v8.0.2` also still emits `DEP0005` `Buffer()`
+warnings during artifact downloads. Both are documented rather than locally
+suppressed; the older Node 20 and `url.parse()` warnings were resolved by
+earlier Pages Action upgrades.
 
 For the detailed durable handoff and exact verified boundaries, see `PROJECT_STATE.md`.

@@ -199,14 +199,45 @@ The state survived independent ephemeral runners and an official Actions runtime
 
 ## GitHub Actions supply-chain hardening
 
-Official GitHub Actions are pinned to immutable full commit SHAs rather than movable tags:
+Official GitHub Actions use immutable full commit SHAs rather than movable tags.
+On **2026-10-08**, [PR #100](https://github.com/Present030/hello-github/pull/100)
+checked the latest stable GitHub release tags and refreshed the two outdated
+Artifact Actions. The verified inventory is:
 
-- `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` — v7
-- `actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97` — v7
-- `actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` — v7
-- `actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9` — v6
+- `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` — v7.0.1
+- `actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97` — v7.0.0
+- `actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9` — v7.0.2
+- `actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333` — v8.0.2
+- `actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9` — v6.1.0
+- `actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6` — v4.2.2
+- `actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9` — v5.0.0
+- `actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346` — v5.0.1
 
-CI and probe workflows have successfully executed after this pinning.
+The upgraded download Action uses fail-closed digest validation
+(`digest-mismatch: error` by default). Formal Release assets, VERSION,
+artifact format, workflow token permissions and existing integrity checks were
+not changed. PR #100 passed the required multi-OS CI, artifact round-trip
+comparison and security audit.
+
+`.github/dependabot.yml` now asks GitHub Dependabot to check `github-actions`
+monthly and proposes at most three concurrent update PRs. **It does not
+automatically merge or grant bypass access:** each proposed change must keep
+full-SHA pinning, pass the protected `workspace-ci gate`, and receive normal
+review. The first real scheduled Dependabot scan/PR has not yet been observed.
+
+**Known upstream warnings (still present, not hidden):**
+
+- `actions/download-artifact v8.0.2`: `DEP0005 Buffer()` appears once on
+  each of the three downloads in the site portability comparison, including
+  [PR #100 CI run 37723662764](https://github.com/Present030/hello-github/actions/runs/37723662764).
+  Updating from v7 did not remove it, although downloads and byte comparisons
+  passed. Reassess on the next upstream release rather than suppress it.
+- `actions/deploy-pages v5.0.1`: `DEP0040 punycode` persists on successful
+  Pages deployments (upstream [issue #434](https://github.com/actions/deploy-pages/issues/434)).
+  The already-fixed Node 20 and `url.parse()` warnings have not returned.
+
+This completes ROADMAP 11's 2026-10-08 maintenance pass; future monthly
+update suggestions and upstream warning status still require review.
 
 ## Repository protection, Pages permissions, and platform boundaries
 

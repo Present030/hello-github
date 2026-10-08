@@ -19,7 +19,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 - [x] **08. Attest formal Release artifacts.** Extend the already-proven native Artifact Attestation probe to formal deliverables and verify the published provenance independently.
 - [x] **09. Expand unattended integrity checks.** Ensure periodic checks cover all formal Release assets, provenance, and selected recovery paths, not only the executable zipapp.
 - [x] **10. Improve alerts and recovery closure.** Cover key workflow failures consistently without noisy duplicate Issues; record recovery evidence and close resolved incidents. *PR #97; real Pages failure → Issue #98 → successful deployment → recorded recovery and automatic closure verified on 2026-10-08. Repeat-failure, rerun, and stale-event handling have regression coverage.*
-- [ ] **11. Maintain pinned GitHub Actions dependencies.** Periodically assess official Action updates and warnings, keep immutable SHA pins, and do not hide upstream deprecations.
+- [x] **11. Maintain pinned GitHub Actions dependencies.** Periodically assess official Action updates and warnings, keep immutable SHA pins, and do not hide upstream deprecations. *PR #100 verified all eight official Action pins against the 2026-10-08 latest tags; upgraded upload-artifact v7.0.2 and download-artifact v8.0.2, and added monthly Dependabot update PRs (no auto-merge). The remaining DEP0005/DEP0040 upstream warnings are documented, not suppressed.*
 
 ## P2 — Presentation and long-term maintenance
 
