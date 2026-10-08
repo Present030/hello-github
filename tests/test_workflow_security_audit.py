@@ -303,6 +303,21 @@ jobs:
                         for item in findings)
                 )
 
+    def test_rejects_unsupported_inline_job_definition(self) -> None:
+        findings = self.audit(
+            """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  unexpected: {permissions: {contents: write}, runs-on: ubuntu-latest}
+"""
+        )
+        self.assertTrue(
+            any("unauthorized job-level permissions override" in item for item in findings)
+        )
+
     def test_requires_approved_job_permission_declaration(self) -> None:
         findings = self.audit(
             """name: unsafe
