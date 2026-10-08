@@ -223,7 +223,7 @@ comparison and security audit.
 monthly and proposes at most three concurrent update PRs. **It does not
 automatically merge or grant bypass access:** each proposed change must keep
 full-SHA pinning, pass the protected `workspace-ci gate`, and receive normal
-review. The first real scheduled Dependabot scan/PR has not yet been observed.
+review. An initial Dependabot update job started after activation (Actions run 37723767058); successful recurring monthly checks and future update PR handling have not yet been independently verified.
 
 **Known upstream warnings (still present, not hidden):**
 
