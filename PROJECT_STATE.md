@@ -1,6 +1,6 @@
 # Project State
 
-Last verified: 2026-09-29
+Last reviewed: 2026-10-08 (latest successful cold-start evidence: 2026-09-29)
 
 ## Purpose
 
@@ -260,6 +260,39 @@ A new ChatGPT session can reconstruct the project without relying on a previous 
 9. current Releases and asset metadata.
 
 A repository-only cold-start audit has already recovered the project purpose, run/build commands, CI model, repository visibility, branch policy, recent history, and outstanding work successfully.
+
+
+### Verified website cold-start recovery
+
+On 2026-09-29, the `cold-start-audit` workflow completed successfully on
+`main@90b5f2f2394e86c47483c48fe5c3567cf56c3b15` (run
+[36530214522](https://github.com/Present030/hello-github/actions/runs/36530214522)):
+
+- `cold-start` — started without checked-out source, independently verified the
+  formal `v0.3.0` Release and its recovery bundle, recovered its release tag,
+  and reproduced the three deterministic assets (`hello-github.pyz`,
+  `hello-github.cdx.json`, and `hello-github-recovery.zip`) byte-for-byte.
+- `site-cold-start` — independently started with no checked-out source,
+  discovered the public Pages URL using the GitHub API, recovered the current
+  default branch `main`, rendered `site/index.html` using the recovered
+  `VERSION` and `tools/render_site.py`, then compared the HTML with the live
+  Pages site byte-for-byte.
+
+The independently recovered site matched
+`https://present030.github.io/hello-github/`:
+
+```text
+SITE_SHA256=e00e0c552d2393d12fbd461dbdc29e49e07b3ce71e26a04b1cc46e5318807bab
+```
+
+The website recovery anchor is **current `main`**, not the `v0.3.0` release
+tag: the website was introduced after that formal release. The first website
+recovery run (PR #83) exposed an HTTP 404 when anonymously querying the Pages
+API. PR #84 corrected discovery with a job-specific token granting
+`contents: read` and `pages: read`; the original release recovery job
+retained its existing `contents: read` boundary. The final run passed both
+jobs without logged warnings.
+
 
 ## Durable model
 
