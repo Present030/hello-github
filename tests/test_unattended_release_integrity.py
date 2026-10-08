@@ -84,10 +84,11 @@ class UnattendedReleaseTests(unittest.TestCase):
                 expected_signer(version)
 
     def test_missing_or_extra_archive_member_fails_closed(self):
+        original = self.bundle.read_bytes()
         self.repack(omit="verify.py")
         with self.assertRaisesRegex(ValueError, "missing, duplicate or extra"):
             self.verify()
-        self.setUp()
+        self.bundle.write_bytes(original)
         self.repack(extra={"unexpected.txt": b"x"})
         with self.assertRaisesRegex(ValueError, "missing, duplicate or extra"):
             self.verify()
