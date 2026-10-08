@@ -233,6 +233,15 @@ jobs:
               time.sleep(3)
           PY
 
+      - name: Verify dynamic public site in real Chrome
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          command -v google-chrome
+          python tools/check_site_browser.py --public-url "$PAGE_URL"
+
       - name: Verify published project links
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
