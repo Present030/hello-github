@@ -53,6 +53,8 @@ jobs:
             --version "$version" \
             --output recovery-input/hello-github.cdx.json
 
+          python tools/check_sbom_scope.py --artifact recovery-input/release/hello-github.pyz --sbom recovery-input/hello-github.cdx.json
+
           echo "RECOVERY_VERSION=$version" >> "$GITHUB_ENV"
           echo "RECOVERY_TARGET=$target" >> "$GITHUB_ENV"
 

@@ -65,6 +65,9 @@ jobs:
             --output hello-github-second.cdx.json
           cmp hello-github.cdx.json hello-github-second.cdx.json
           rm hello-github-second.cdx.json
+          python tools/check_sbom_scope.py \
+            --artifact dist/hello-github.pyz \
+            --sbom hello-github.cdx.json
 
       - name: Build release manifest
         shell: bash

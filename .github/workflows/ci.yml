@@ -48,6 +48,11 @@ jobs:
           cmp dist/hello-github-a.pyz dist/hello-github-b.pyz
           python dist/hello-github-a.pyz --json > zipapp-runtime-report.json
           python -c "import hashlib, pathlib; print('ZIPAPP_SHA256=' + hashlib.sha256(pathlib.Path('dist/hello-github-a.pyz').read_bytes()).hexdigest())"
+      - name: Verify executable-only SBOM scope
+        if: ${{ matrix.python-version == '3.13' }}
+        run: |
+          python tools/build_sbom.py --artifact dist/hello-github-a.pyz --version "$(cat VERSION)" --output dist/hello-github.cdx.json
+          python tools/check_sbom_scope.py --artifact dist/hello-github-a.pyz --sbom dist/hello-github.cdx.json
       - name: Generate runtime report
         run: python -m hello_github --json > runtime-report.json
       - name: Verify source and zipapp reports match
