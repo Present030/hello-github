@@ -384,6 +384,74 @@ HTTP API in Node.js where available, covering evidence states, mismatch,
 expiry and network fallback. ROADMAP item 05 still covers full browser and
 end-to-end dynamic deployment validation.
 
+### SBOM subject boundary and final Pages exposure audit (ROADMAP 13, 2026-10-08)
+
+[PR #106](https://github.com/Present030/hello-github/pull/106)
+merged as `main@bb19bd96bbbf5f25d7e11a99da401a63acd0d57b`.
+
+**SBOM: exact subject and validation**
+
+The deterministic CycloneDX 1.6 document `hello-github.cdx.json`
+describes **one distributable application: `hello-github.pyz`**. Its
+application component records the executable SHA-256 digest and the
+`python-standard-library-only` claim. The empty `components` list means
+there are no third-party **runtime components declared for this executable**;
+it is **not an inventory** of the website, GitHub Actions, hosted runner
+images, build/test tooling or all repository contents.
+
+`tools/check_sbom_scope.py` now validates the actual executable ZIP
+members, rejects unexpected/vendor-like members and unsafe member names,
+parses embedded Python source using `ast` to reject statically declared
+non-standard-library imports, and requires the SBOM component, dependency
+claim and SHA-256 to match the executable. It is wired to the required
+`workspace-ci` test job and to future formal Release generation, plus the
+historical `sbom-probe` and `recovery-bundle` workflows.
+These checks do **not** prove the absence of dynamically imported modules,
+network-loaded code, malicious package code hidden within an allowed package
+file or undisclosed external runtime services; expanding the executable's
+dependency model requires revising the SBOM and its validator.
+
+The original deterministic v0.3.0 SBOM format and published Release bytes
+are unchanged. New checks succeeded in
+[main CI 37735189721](https://github.com/Present030/hello-github/actions/runs/37735189721),
+[historical SBOM probe 37735189668](https://github.com/Present030/hello-github/actions/runs/37735189668),
+and [recovery-bundle 37735189941](https://github.com/Present030/hello-github/actions/runs/37735189941).
+
+**Public exposure: audit the bytes about to be published**
+
+Existing `tools/audit_public_exposure.py` scans Git-tracked source and,
+in required PR CI, reachable Git blobs and commit email metadata.
+High-confidence known secret patterns produce **BLOCK**; likely privacy
+markers (email addresses, private IPs, local usernames/paths and
+credential-shaped assignments) are only **ADVISORY** unless a reviewer
+explicitly opts into `--fail-on-advisory`. No matched secret value is
+printed. This is a heuristic audit, not a comprehensive secret detector:
+unknown secret formats, encoded/fragmented material, binary data,
+unreadable/non-UTF-8 and source blobs over 2 MiB may escape content scanning.
+It cannot erase exposure already present in public Git history.
+
+The Pages workflow now runs
+`python tools/audit_public_exposure.py --public-dir dist/site`
+**after** rendering the allowlisted public status JSON and **before**
+uploading the Pages artifact. Its intentionally narrow publication policy
+allows only readable UTF-8 `index.html` and `status.json` (each at most
+2 MiB). Missing or extra assets, symlinks, oversized or binary/uninspectable
+content and high-confidence secret patterns **block** upload; privacy
+heuristics remain advisory. A future CSS/image/media addition must explicitly
+update this policy and implement appropriate asset-type review rather than
+silently bypass the scanner. The existing public status JSON field allowlist,
+browser freshness checks and byte-for-byte deployed-content validation remain.
+
+The real [Pages run 37735189711](https://github.com/Present030/hello-github/actions/runs/37735189711)
+passed the new final-artifact check and online verification. An older
+Pages run failed a legitimate main-SHA change guard during the merge,
+opened [Issue #107](https://github.com/Present030/hello-github/issues/107),
+and automatically closed with the newer successful Pages run as evidence.
+Tests exercise clean, unexpected, secret-containing, missing and
+unscannable published assets and verify advisory/privacy separation.
+The new scans do not replace code review or specialist vulnerability,
+license, privacy, or accessibility analysis.
+
 ### Real-browser end-to-end website regression (2026-10-08)
 
 ROADMAP 05 adds a real headless Chrome browser gate, separate from the existing
