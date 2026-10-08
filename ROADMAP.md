@@ -9,7 +9,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 - [x] **01. Record non-success main CI outcomes.** Extend `project-health` to emit a `degraded` artifact when `workspace-ci` on `main` fails or is cancelled, without relying on the failed revision's source tree. Verify the event-to-JSON contract with synthetic failure/cancellation tests. *Note: an intentionally failing protected-main CI run is not part of this change; its first real occurrence must be checked independently.*
 - [x] **02. Define health evidence freshness and scope.** Distinguish current, historical, unknown, and stale evidence. Extend checks to relevant website/recovery workflows; document how timestamps and version/commit relationships affect health.
 - [x] **03. Publish an anonymous-safe status feed for Pages.** Expose a stable structured resource derived from controlled Actions evidence; ensure no private tokens or internal data reach the public site.
-- [ ] **04. Render real project status on the website.** Replace hard-coded CI/Release/Recovery/SBOM labels with evidence-backed status, timestamps, and links. Make unavailable data visibly unknown rather than silently green.
+- [x] **04. Render real project status on the website.** Replace hard-coded CI/Release/Recovery/SBOM labels with evidence-backed status, timestamps, and links. Make unavailable data visibly unknown rather than silently green.
 - [ ] **05. Test the dynamic website end-to-end.** Cover success, failure, stale data, network errors, cross-platform rendering, cold-start recovery, and verification of the published site.
 
 ## P1 — Publication and operational closure

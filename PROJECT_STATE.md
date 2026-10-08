@@ -322,6 +322,37 @@ response cannot mutate itself after deployment. A failure in the Pages
 deployment could also leave an older public document accessible, so the
 expiry check is a consumer responsibility.
 
+### Dynamic website evidence cards (2026-10-08)
+
+The existing `site/index.html` now reads the published
+`./status.json` feed with browser `fetch` and `cache: no-store`.
+No backend, private token, third-party runtime or non-reproducible build asset
+is required. Without JavaScript or when loading fails, status cards default
+to **未知 / unknown** instead of embedded success claims.
+
+The site checks the public schema, exact displayed version, full commit SHA,
+health source run ID, `source_generated_at` and `expires_at`. It independently
+rejects an expired snapshot, excessive future timestamp, and a claimed
+healthy status unsupported by current-main CI evidence. Data is refreshed
+every five minutes while the page remains open, and expiry is re-evaluated
+every minute and when the page becomes visible again. Successful historical
+release and recovery checks are labeled as historical, **not** validation of
+the current source commit. SBOM's “included” label means the Release asset
+inventory lists an SBOM, **not** that its current contents were re-verified.
+
+All dynamic content is assigned with `textContent`, not `innerHTML`;
+evidence URLs are assembled from a fixed repository Actions prefix and
+validated numeric run IDs. Individual cards point to matching GitHub Actions
+evidence; the summary points to the producing `project-health` run.
+Version and stable download URLs still come from the repository's `VERSION`
+at deployment. The existing site byte-level reproducibility and public
+deployment comparison remain unchanged.
+
+Unit tests execute the actual inline script under a minimal mocked DOM and
+HTTP API in Node.js where available, covering evidence states, mismatch,
+expiry and network fallback. ROADMAP item 05 still covers full browser and
+end-to-end dynamic deployment validation.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
