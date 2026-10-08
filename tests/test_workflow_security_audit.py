@@ -188,8 +188,8 @@ jobs:
                     "needs.release-ready.outputs.ready != 'true'",
                 )),
                 ("elevated readiness token", payload.replace(
-                    "    permissions:\\n      actions: read\\n      contents: read",
-                    "    permissions:\\n      actions: write\\n      contents: read",
+                    "    permissions:\n      actions: read\n      contents: read",
+                    "    permissions:\n      actions: write\n      contents: read",
                 )),
             ):
                 with self.subTest(name=name):
