@@ -18,7 +18,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 - [ ] **07. Verify propagation on the next real version release.** Check `VERSION → Release → SBOM → recovery bundle → Pages → live links`. Do not fabricate a version solely for this experiment.
 - [x] **08. Attest formal Release artifacts.** Extend the already-proven native Artifact Attestation probe to formal deliverables and verify the published provenance independently.
 - [x] **09. Expand unattended integrity checks.** Ensure periodic checks cover all formal Release assets, provenance, and selected recovery paths, not only the executable zipapp.
-- [ ] **10. Improve alerts and recovery closure.** Cover key workflow failures consistently without noisy duplicate Issues; record recovery evidence and close resolved incidents.
+- [x] **10. Improve alerts and recovery closure.** Cover key workflow failures consistently without noisy duplicate Issues; record recovery evidence and close resolved incidents. *PR #97; real Pages failure → Issue #98 → successful deployment → recorded recovery and automatic closure verified on 2026-10-08. Repeat-failure, rerun, and stale-event handling have regression coverage.*
 - [ ] **11. Maintain pinned GitHub Actions dependencies.** Periodically assess official Action updates and warnings, keep immutable SHA pins, and do not hide upstream deprecations.
 
 ## P2 — Presentation and long-term maintenance
@@ -35,7 +35,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 - Enforced `main-protection` Ruleset; least-privilege workflow probes and job-level permission auditing.
 - Project health CI sequencing/pagination fixes.
 - Source-free Release recovery and independent site cold-start byte comparison.
-- Native Artifact Attestation probe (not yet attached to the formal Release).
+- Native Artifact Attestation probe and five-asset formal Release provenance checks (build-time attestation for future releases; post-hoc witness only for existing `v0.3.0`).
 
 ## Evidence discipline
 
