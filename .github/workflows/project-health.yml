@@ -68,3 +68,73 @@ jobs:
         with:
           name: project-health
           path: project-health.json
+
+  # Failure evidence must not depend on checking out a potentially broken main commit.
+  # This path uses only the trusted workflow_run event and the runner's Python.
+  ci-failure-snapshot:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build degraded snapshot from CI event
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          from pathlib import Path
+
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+          run = event["workflow_run"]
+          if (
+              event["repository"]["full_name"] != os.environ["GITHUB_REPOSITORY"]
+              or run["event"] != "push"
+              or run["head_branch"] != "main"
+              or not run.get("conclusion")
+              or run["conclusion"] == "success"
+          ):
+              raise SystemExit("refusing to record an untrusted/non-failed main CI event")
+
+          evidence = {
+              "id": run["id"],
+              "run_number": run["run_number"],
+              "event": run["event"],
+              "head_sha": run["head_sha"],
+              "conclusion": run["conclusion"],
+          }
+          snapshot = {
+              "schema": "hello-github-project-health/v1",
+              "status": "degraded",
+              "snapshot_kind": "ci_failure",
+              "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "head_sha": run["head_sha"],
+              "version": None,
+              "release": {"tag": None, "target_commit": None, "assets": {}},
+              "checks": {
+                  "release_alignment": None,
+                  "current_main_ci": False,
+                  "state_drift_audit": "not_run",
+                  "workflow_security_audit": "not_run",
+              },
+              "workflow_evidence": {"workspace-ci": evidence},
+              "degraded_reasons": [f"main_ci_{run['conclusion']}"],
+          }
+          Path("project-health.json").write_text(
+              json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          print(f"PROJECT_HEALTH=degraded; CI_RUN_ID={run['id']}; conclusion={run['conclusion']}")
+          PY
+
+      - name: Upload degraded health snapshot
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: project-health
+          path: project-health.json
+          if-no-files-found: error
+
+      - name: Fail health workflow after preserving evidence
+        shell: bash
+        run: exit 1
