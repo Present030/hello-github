@@ -107,6 +107,22 @@ VERSION
 = downloaded zipapp --version
 ```
 
+## SBOM and public publication boundaries
+
+The CycloneDX SBOM is scoped to the **Python executable zipapp**, not to
+GitHub Actions, hosted runners, website dependencies, or developer tools.
+The build, Release and historical recovery probes now check the executable
+archive's allowed members, static imports, the SBOM's declared scope and
+its matching SHA-256. Dynamic imports and runtime-loaded code are outside
+this static check; future dependencies require revising the declaration.
+
+The exposure audit blocks recognizable high-confidence secrets and treats
+personal-email, private-network and local-user-path hints as advisories.
+It also checks the **final** Pages output before uploading: currently only
+UTF-8 `index.html` and `status.json` are permitted. New public assets
+must undergo explicit policy review. Encoded, binary or unknown-format
+secrets and historically exposed Git content are not guaranteed detectable.
+
 ## Issue-driven remote probes
 
 Only Issues opened by the repository owner and having an exact fixed title can trigger these workflows. Issue bodies are ignored and never executed as commands.
