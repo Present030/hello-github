@@ -165,3 +165,84 @@ jobs:
           cmp verify-recovery/release/hello-github.pyz verify-release/hello-github.pyz
 
           echo "PASS: release tag, executable, SBOM, recovery bundle, and runtime evidence all agree"
+
+  attest:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout verification logic at release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Independently download published formal assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p published-release
+          gh release download "v$version" --repo "$GITHUB_REPOSITORY" --dir published-release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > formal-release.json
+          python tools/verify_formal_release_assets.py \
+            --release-json formal-release.json \
+            --release-dir published-release \
+            --expected-target "$GITHUB_SHA"
+
+      - name: Sign all five downloaded and verified formal Release assets
+        id: attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: 'published-release/*'
+
+      - name: Report provenance identity
+        env:
+          ATTESTATION_ID: ${{ steps.attestation.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.attestation.outputs.attestation-url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ATTESTATION_ID"
+          test -n "$ATTESTATION_URL"
+          echo "RELEASE_PROVENANCE_ATTESTATION_ID=$ATTESTATION_ID"
+          echo "RELEASE_PROVENANCE_ATTESTATION_URL=$ATTESTATION_URL"
+
+  verify-provenance:
+    needs: attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout verification logic
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download formal Release into a separate clean runner
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p independent-release
+          gh release download "v$version" --repo "$GITHUB_REPOSITORY" --dir independent-release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > independent-release.json
+          python tools/verify_formal_release_assets.py \
+            --release-json independent-release.json \
+            --release-dir independent-release \
+            --expected-target "$GITHUB_SHA"
+
+      - name: Verify all five published provenance subjects and signer identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for path in independent-release/*; do
+            gh attestation verify "$path" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          done
+          echo "PASS: all five formal Release assets independently verify against release.yml provenance"
