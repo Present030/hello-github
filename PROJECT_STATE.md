@@ -461,6 +461,43 @@ incrementing VERSION. Full propagation during the first real future
 Release remains pending under ROADMAP 07; unattended provenance checking
 remains ROADMAP 09.
 
+### Weekly five-asset integrity, provenance, and recovery audit (2026-10-08)
+
+The existing `health-check` runs once per week (Monday 03:17 UTC) and
+still supports the original manual dispatch, source/version consistency
+audit, and deduplicated failure Issue/recovery closure. It now performs
+additional fail-closed validation **in the same run**:
+
+1. Download **all five formal Release assets** and inspect exact uploaded
+   status, size, SHA-256 of downloaded bytes, Release target/tag, manifest,
+   runtime report, and CycloneDX executable hash using the existing
+   `verify_formal_release_assets.py` validation.
+2. Run `gh attestation verify` separately for **each published asset**
+   with an explicit signing workflow identity. `v0.3.0` has a **post-hoc
+   verification witness** signed by
+   `formal-release-attestation.yml`; any future version after `0.3.0`
+   must use the *build-time* `release.yml` signer. No generic/any-signer
+   fallback is permitted. Earlier unproven versions fail closed.
+3. After digest and signature verification, inspect the offline recovery ZIP
+   for the expected eight members (reject duplicates/extra entries), require
+   safe paths and size limits, match all copied assets to their independently
+   downloaded Release counterparts, check recovery metadata against the
+   Release target and version, and execute the recovered `verify.py`
+   self-check.
+
+Any failure propagates to the **existing** `[health-check-failure]` Issue;
+a later entirely successful check closes it with a recovery reference.
+The workflow does not re-sign assets, edit a Release, move tags, or add token
+permissions. Unit tests include negative cases for corrupted or incomplete
+recovery archives, mismatched payload copies, altered metadata, and version
+selection of the signer.
+
+This verifies the current downloadable artifacts on each periodic run. It
+does not establish that the original `v0.3.0` build was signed at creation
+time, and does not substitute for the next real VERSION upgrade propagation
+check (ROADMAP 07). The actual scheduled Monday run remains a future
+trigger; CI and a push-triggered run of `health-check` validate this code.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
