@@ -134,6 +134,7 @@ class LiveStatusCardsTests(unittest.TestCase):
         process = subprocess.run(
             [self.node, "-e", NODE_HARNESS],
             text=True,
+            encoding="utf-8",
             capture_output=True,
             env={
                 **os.environ,
