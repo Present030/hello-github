@@ -64,6 +64,51 @@ jobs:
 
           echo "PASS: source, rebuilt artifact, and latest Release agree at $tag"
 
+      - name: Download and validate all five formal Release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p formal-release
+          gh release download "v$version" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir formal-release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > formal-release.json
+          python tools/verify_formal_release_assets.py \
+            --release-json formal-release.json \
+            --release-dir formal-release
+
+      - name: Verify native attestation for every published asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          signer="$(python tools/verify_unattended_release.py --signer-only)"
+          # v0.3.0 has a post-hoc witness; later Releases must be signed
+          # by release.yml itself, not by the historical witness workflow.
+          for name in \
+            hello-github.pyz hello-github.cdx.json hello-github-recovery.zip \
+            release-manifest.txt runtime-report.json; do
+            gh attestation verify "formal-release/$name" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/$signer"
+            echo "PASS: attestation verified $name signer=$signer"
+          done
+
+      - name: Verify offline recovery bundle and published contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/verify_unattended_release.py \
+            --release-dir formal-release \
+            --release-json formal-release.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --output-dir verified-offline-recovery
+          echo "PASS: unattended five-asset provenance and offline recovery checks complete"
+
       - name: Open or update health-check failure Issue
         if: ${{ failure() }}
         shell: bash
