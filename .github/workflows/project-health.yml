@@ -50,6 +50,7 @@ jobs:
           CURRENT_CI_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
           CURRENT_CI_EVENT: ${{ github.event.workflow_run.event }}
           CURRENT_CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CURRENT_CI_UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
         run: |
           set -euo pipefail
           python tools/build_health_snapshot.py \
@@ -61,6 +62,7 @@ jobs:
             --current-ci-run-number "$CURRENT_CI_RUN_NUMBER" \
             --current-ci-event "$CURRENT_CI_EVENT" \
             --current-ci-conclusion "$CURRENT_CI_CONCLUSION" \
+            --current-ci-updated-at "$CURRENT_CI_UPDATED_AT" \
             --output project-health.json
 
       - name: Upload project health snapshot

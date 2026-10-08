@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,8 @@ from tools.build_health_snapshot import build_snapshot, CRITICAL_WORKFLOWS
 
 HEAD = "a" * 40
 RELEASE_TARGET = "b" * 40
+NOW = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
+RECENT = (NOW - timedelta(days=2)).isoformat()
 
 
 def release() -> dict[str, object]:
@@ -43,6 +46,7 @@ def runs(*, ci_head: str = HEAD, failed: str | None = None) -> dict[str, object]
                 "run_number": index,
                 "event": "push",
                 "head_sha": ci_head if name == "workspace-ci" else "d" * 40,
+                "updated_at": RECENT,
             }
         )
     return {"workflow_runs": items}
@@ -55,6 +59,7 @@ class HealthSnapshotTests(unittest.TestCase):
             head_sha=HEAD,
             release=release(),
             runs_payload=runs(),
+            now=NOW,
         )
         self.assertEqual(snapshot["status"], "healthy")
         self.assertTrue(snapshot["checks"]["release_alignment"])
@@ -66,12 +71,14 @@ class HealthSnapshotTests(unittest.TestCase):
             head_sha=HEAD,
             release=release(),
             runs_payload=runs(ci_head="e" * 40),
+            now=NOW,
             current_ci={
                 "id": 999,
                 "run_number": 42,
                 "event": "push",
                 "head_sha": HEAD,
                 "conclusion": "success",
+                "updated_at": RECENT,
             },
         )
         self.assertEqual(snapshot["status"], "healthy")
@@ -99,6 +106,7 @@ class HealthSnapshotTests(unittest.TestCase):
                 first_page,
                 {"workflow_runs": [recovery_probe]},
             ],
+            now=NOW,
         )
         self.assertEqual(snapshot["status"], "healthy")
         self.assertEqual(
@@ -114,6 +122,7 @@ class HealthSnapshotTests(unittest.TestCase):
             head_sha=HEAD,
             release=payload,
             runs_payload=runs(),
+            now=NOW,
         )
         self.assertEqual(snapshot["status"], "degraded")
         self.assertFalse(snapshot["checks"]["release_alignment"])
@@ -124,6 +133,7 @@ class HealthSnapshotTests(unittest.TestCase):
             head_sha=HEAD,
             release=release(),
             runs_payload=runs(ci_head="e" * 40),
+            now=NOW,
         )
         self.assertEqual(snapshot["status"], "degraded")
         self.assertFalse(snapshot["checks"]["current_main_ci"])
@@ -134,8 +144,135 @@ class HealthSnapshotTests(unittest.TestCase):
             head_sha=HEAD,
             release=release(),
             runs_payload=runs(failed="recovery-bundle"),
+            now=NOW,
         )
         self.assertEqual(snapshot["status"], "degraded")
+
+
+    def test_classifies_main_ci_as_current_and_older_probes_as_historical(self) -> None:
+        snapshot = build_snapshot(
+            version="1.2.3",
+            head_sha=HEAD,
+            release=release(),
+            runs_payload=runs(),
+            now=NOW,
+        )
+        self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["state"], "current")
+        self.assertEqual(snapshot["workflow_evidence"]["health-check"]["state"], "historical")
+        self.assertEqual(
+            snapshot["workflow_evidence"]["health-check"]["relation"],
+            "historical_commit",
+        )
+        self.assertEqual(snapshot["workflow_evidence"]["health-check"]["freshness"], "fresh")
+        self.assertEqual(snapshot["evidence_policy"]["max_age_days"], 30)
+        self.assertFalse(snapshot["evidence_policy"]["historical_success_is_current_proof"])
+        self.assertEqual(snapshot["generated_at"], NOW.isoformat())
+        self.assertEqual(snapshot["degraded_reasons"], [])
+
+    def test_stale_probe_makes_snapshot_degraded(self) -> None:
+        payload = runs()
+        for item in payload["workflow_runs"]:
+            if item["name"] == "sbom-probe":
+                item["updated_at"] = (NOW - timedelta(days=31)).isoformat()
+        snapshot = build_snapshot(
+            version="1.2.3", head_sha=HEAD, release=release(),
+            runs_payload=payload, now=NOW,
+        )
+        evidence = snapshot["workflow_evidence"]["sbom-probe"]
+        self.assertEqual(evidence["state"], "stale")
+        self.assertEqual(evidence["freshness"], "stale")
+        self.assertEqual(snapshot["status"], "degraded")
+        self.assertIn("workflow:sbom-probe:stale", snapshot["degraded_reasons"])
+
+    def test_missing_or_malformed_timestamp_is_unknown(self) -> None:
+        for invalid in (None, "2026-10-08T12:00:00", "not-a-date",
+                        (NOW + timedelta(hours=2)).isoformat()):
+            with self.subTest(invalid=invalid):
+                payload = runs()
+                for item in payload["workflow_runs"]:
+                    if item["name"] == "health-check":
+                        item["updated_at"] = invalid
+                snapshot = build_snapshot(
+                    version="1.2.3", head_sha=HEAD, release=release(),
+                    runs_payload=payload, now=NOW,
+                )
+                self.assertEqual(
+                    snapshot["workflow_evidence"]["health-check"]["state"], "unknown"
+                )
+                self.assertEqual(snapshot["status"], "degraded")
+
+    def test_missing_pages_or_cold_start_evidence_is_degraded(self) -> None:
+        for missing in ("Deploy website to GitHub Pages", "cold-start-audit"):
+            with self.subTest(missing=missing):
+                payload = runs()
+                payload["workflow_runs"] = [
+                    item for item in payload["workflow_runs"]
+                    if item["name"] != missing
+                ]
+                snapshot = build_snapshot(
+                    version="1.2.3", head_sha=HEAD, release=release(),
+                    runs_payload=payload, now=NOW,
+                )
+                self.assertIsNone(snapshot["workflow_evidence"][missing])
+                self.assertIn(f"workflow:{missing}:unknown", snapshot["degraded_reasons"])
+                self.assertEqual(snapshot["status"], "degraded")
+
+    def test_failed_pages_or_cold_start_does_not_inherit_past_success(self) -> None:
+        for failure in ("Deploy website to GitHub Pages", "cold-start-audit"):
+            with self.subTest(failure=failure):
+                payload = runs(failed=failure)
+                snapshot = build_snapshot(
+                    version="1.2.3", head_sha=HEAD, release=release(),
+                    runs_payload=payload, now=NOW,
+                )
+                self.assertEqual(snapshot["workflow_evidence"][failure]["state"], "failed")
+                self.assertEqual(snapshot["status"], "degraded")
+
+    def test_ci_event_timestamp_is_authoritative_not_latest_api_history(self) -> None:
+        payload = runs(ci_head="e" * 40)
+        snapshot = build_snapshot(
+            version="1.2.3", head_sha=HEAD, release=release(),
+            runs_payload=payload,
+            current_ci={
+                "id": 999, "run_number": 42, "event": "push",
+                "head_sha": HEAD, "conclusion": "success",
+                "updated_at": (NOW - timedelta(days=31)).isoformat(),
+            },
+            now=NOW,
+        )
+        self.assertEqual(snapshot["status"], "degraded")
+        self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["id"], 999)
+        self.assertEqual(snapshot["workflow_evidence"]["workspace-ci"]["state"], "stale")
+        self.assertFalse(snapshot["checks"]["current_main_ci"])
+
+    def test_ci_event_must_be_a_push_to_mark_current(self) -> None:
+        snapshot = build_snapshot(
+            version="1.2.3", head_sha=HEAD, release=release(),
+            runs_payload=runs(),
+            current_ci={
+                "id": 999, "run_number": 42, "event": "pull_request",
+                "head_sha": HEAD, "conclusion": "success",
+                "updated_at": RECENT,
+            },
+            now=NOW,
+        )
+        self.assertEqual(snapshot["status"], "degraded")
+        self.assertFalse(snapshot["checks"]["current_main_ci"])
+
+    def test_age_boundary_and_short_clock_skew(self) -> None:
+        for days, expected in ((30, "fresh"), (31, "stale")):
+            with self.subTest(days=days):
+                payload = runs()
+                for item in payload["workflow_runs"]:
+                    if item["name"] == "cold-start-audit":
+                        item["updated_at"] = (NOW - timedelta(days=days)).isoformat()
+                snapshot = build_snapshot(
+                    version="1.2.3", head_sha=HEAD, release=release(),
+                    runs_payload=payload, now=NOW,
+                )
+                self.assertEqual(
+                    snapshot["workflow_evidence"]["cold-start-audit"]["freshness"], expected
+                )
 
 
 
