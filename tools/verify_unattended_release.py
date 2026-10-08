@@ -14,7 +14,10 @@ import subprocess
 import sys
 from zipfile import ZipFile
 
-from tools.verify_formal_release_assets import SEMVER
+if __package__:
+    from .verify_formal_release_assets import SEMVER
+else:
+    from verify_formal_release_assets import SEMVER
 
 RECOVERY_MEMBERS = frozenset({
     "CHECKSUMS.sha256",
