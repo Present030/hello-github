@@ -420,6 +420,47 @@ Until a valid fresh health snapshot exists, the public status must remain
 published version may remain online during a pending Release; this is
 intentional conservative behavior, not a claim that the new version shipped.
 
+### Formal Release provenance and independent verification (2026-10-08)
+
+The already successful fixed-file `artifact-attestation-probe` is extended
+to **all five published formal Release assets**, using the GitHub-native
+`actions/attest` action pinned to an immutable commit. The Release workflow
+keeps its original `contents: write` publish job, then runs a separate
+`attest` job with only `contents: read`, `attestations: write` and
+`id-token: write`. It downloads the published Release and validates exactly
+five uploaded assets against their actual SHA-256 bytes, formal version,
+manifest, Release target commit and CycloneDX metadata before signing. A
+third `verify-provenance` job runs in a **new, read-only runner**, downloads
+the files independently and verifies each cryptographic attestation with
+`gh attestation verify --signer-workflow .../release.yml`. A formal release
+workflow run cannot report success until this independent job passes. This
+will apply to the **next genuine VERSION change**, not retroactively to the
+original `v0.3.0` release workflow.
+
+A separate `formal-release-attestation` workflow also performs a
+**post-hoc witness** of the existing `v0.3.0` Release: it checks the original
+release workflow success, downloads the five unchanged published files,
+checks metadata and digests, signs these **existing published bytes**, then
+uses a second read-only runner to verify the five subjects and require
+`.../formal-release-attestation.yml` as the signer identity. The witness
+**does not** modify, overwrite, add assets to, or retag `v0.3.0`.
+Its signer certificate and time belong to the new verification workflow.
+**Do not describe this as evidence that the 2026-09-24 build itself was
+signed.** The original build provenance and the later verification witness
+remain intentionally distinguishable.
+
+The attestations live in GitHub's attestation store, not as additional
+formal Release assets. The existing deterministic five-asset Release
+contract therefore remains intact. A local `tools/verify_formal_release_assets.py`
+command and adversarial unit tests independently validate the subjects,
+including tampered bytes, unexpected or missing assets, metadata, SBOM,
+manifest and target-commit mismatches.
+
+The provenance integration is tested against the existing Release without
+incrementing VERSION. Full propagation during the first real future
+Release remains pending under ROADMAP 07; unattended provenance checking
+remains ROADMAP 09.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:

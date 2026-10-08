@@ -41,6 +41,7 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
         "pages": "write",
         "id-token": "write",
     },
+    "formal-release-attestation.yml": {"contents": "read"},
     "attestation-probe.yml": {
         "attestations": "write",
         "contents": "read",
@@ -51,6 +52,22 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
 # Only these jobs may override their workflow-level GITHUB_TOKEN permissions.
 # All other jobs must inherit the explicitly audited workflow-level permissions.
 EXPECTED_JOB_PERMISSIONS: dict[str, dict[str, dict[str, str]]] = {
+    "release.yml": {
+        "attest": {
+            "attestations": "write",
+            "contents": "read",
+            "id-token": "write",
+        },
+        "verify-provenance": {"contents": "read"},
+    },
+    "formal-release-attestation.yml": {
+        "sign-published": {
+            "attestations": "write",
+            "contents": "read",
+            "id-token": "write",
+        },
+        "independent-verify": {"contents": "read"},
+    },
     "cold-start-audit.yml": {
         "site-cold-start": {"contents": "read", "pages": "read"},
     },

@@ -144,6 +144,14 @@ the public page byte-for-byte.
 Native GitHub Artifact Attestation is also verified for this public repository: a fixed
 probe artifact was attested and then verified with `gh attestation verify`.
 
+Formal Release provenance is now integrated for future VERSION-triggered
+releases: all five published assets are attested after download and byte
+validation, and independently verified by a read-only runner. The existing
+`v0.3.0` assets are separately witnessed by a post-hoc verification
+workflow; that **does not** imply the original build was attested at its
+creation. Neither path adds or overwrites a formal Release asset. See
+`PROJECT_STATE.md` for the security and evidence boundaries.
+
 The current connector still does not expose direct branch/ref deletion or arbitrary
 workflow-dispatch creation. Merged PR branches are normally removed by the repository's
 automatic head-branch deletion setting; exceptional stale branches may require a small
