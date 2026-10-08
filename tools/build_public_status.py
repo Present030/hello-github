@@ -46,12 +46,14 @@ def timestamp(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc) if parsed.tzinfo else None
 
 
-def clean_evidence(value: Any) -> dict[str, Any] | None:
+def clean_evidence(value: Any, *, failed_ci: bool = False) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
     run_id = value.get("id")
     state = value.get("state")
     conclusion = value.get("conclusion")
+    if failed_ci and state is None and conclusion in CONCLUSIONS - {"success"}:
+        state = "failed"
     observed = timestamp(value.get("observed_at"))
     head = value.get("head_sha")
     if (
@@ -141,7 +143,11 @@ def build_public_status(
         public["reason"] = "invalid_evidence"
         return public
     public["workflows"] = {
-        name: clean_evidence(evidence.get(name)) for name in WORKFLOWS
+        name: clean_evidence(
+            evidence.get(name),
+            failed_ci=(kind == "ci_failure" and name == "workspace-ci"),
+        )
+        for name in WORKFLOWS
     }
     ci = public["workflows"]["workspace-ci"]
     if ci is None or ci["head_sha"] != main_sha or ci["conclusion"] not in CONCLUSIONS:
