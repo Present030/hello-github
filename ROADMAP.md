@@ -25,7 +25,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 
 - [x] **12. Add browser, mobile, and accessibility checks.** Validate interactive states, keyboard navigation, and graceful error behavior. *PR #102; required Chrome desktop/mobile (320/375/768 CSS px) and Firefox WebDriver checks cover responsive reflow, real Tab order, focus, landmark/ARIA naming, evidence links and failure fallbacks. PR CI run 37733879426 passed.*
 - [x] **13. Review SBOM and exposure-audit coverage.** Make known limits explicit, add coverage as dependencies and public content expand, and keep privacy heuristics separate from high-confidence secret detection. *PR #106: executable-only SBOM scope validation, static-import/archive checks in CI/Release/probes, and fail-closed final Pages artifact allowlist. Confirmed on main CI 37735189721, SBOM 37735189668, recovery 37735189941 and Pages 37735189711; coverage limits documented.*
-- [ ] **14. Enable independent reviews when multi-person development begins.** The current protected main requires PR plus `workspace-ci gate`, but permits zero approvals as a conscious single-maintainer choice.
+- [ ] **14. Enable independent reviews when multi-person development begins.** The current protected main requires PR plus `workspace-ci gate`, but permits zero approvals as a conscious single-maintainer choice. *Read-only Ruleset audit and activation/verification runbook prepared on 2026-10-08 (see `CONTRIBUTING.md`); implementation remains conditional on an available independent human reviewer and a real server-side approval test. Do not mark complete before that evidence exists.*
 
 ## Verified foundation (keep as regression gates)
 

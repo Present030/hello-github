@@ -144,7 +144,7 @@ The chain continued successfully across an Actions runtime refresh.
 
 The repository has exercised a full inline review loop where the initial Linux matrix CI was green but review found a shared-mutable-state bug. The fix added regression coverage, the review thread was replied to and resolved, and the corrected CI passed before merge.
 
-GitHub correctly refuses self-approval of a pull request. Independent approval requires another GitHub identity.
+GitHub correctly refuses self-approval of a pull request. Independent approval requires another GitHub identity. The current `main-protection` Ruleset intentionally requires **zero approvals** while an available second human reviewer has not been verified. The activation procedure and server-side acceptance test are recorded in [CONTRIBUTING.md](CONTRIBUTING.md); ROADMAP 14 remains pending until real independent review is enforceable.
 
 ## Repository protection and verified boundaries
 
