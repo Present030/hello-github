@@ -6,7 +6,6 @@ Browsers and drivers come from the GitHub-hosted Ubuntu runner image.
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -72,7 +71,7 @@ class Browser:
             headers={"Content-Type": "application/json"},
         )
         try:
-            with HTTP.open(request, timeout=15) as response:
+            with HTTP.open(request, timeout=90 if path == "/session" else 15) as response:
                 result = json.load(response)
         except HTTPError as exc:
             raise AssertionError(
@@ -285,7 +284,6 @@ def keyboard(browser: Browser, failure: bool) -> None:
 
 
 def scenario(browser_name: str, width: int | None, page: bytes, version: str):
-    from contextlib import closing
     healthy = fixture_status(datetime.now(timezone.utc), version)
     server = serve_fixture(page, json.dumps(healthy).encode("utf-8"))
     try:
@@ -300,24 +298,40 @@ def scenario(browser_name: str, width: int | None, page: bytes, version: str):
         server.server_close()
 
 
-def failure_scenarios(page: bytes, version: str):
+def firefox_suite(page: bytes, version: str):
+    # Reuse one Firefox session for healthy and degraded scenarios. Firefox
+    # startup on shared hosted runners can take substantially longer than Chrome.
     healthy = fixture_status(datetime.now(timezone.utc), version)
-    for description, payload, code in (
-        ("HTTP 503", json.dumps(healthy).encode("utf-8"), 503),
-        ("malformed JSON", b"{invalid", 200),
-    ):
-        server = serve_fixture(page, payload, code)
-        try:
-            with Browser("firefox") as browser:
+    with Browser("firefox") as browser:
+        cases = [
+            ("healthy", json.dumps(healthy).encode("utf-8"), 200, "健康", False),
+            ("HTTP 503", json.dumps(healthy).encode("utf-8"), 503, "未知", True),
+            ("malformed JSON", b"{invalid", 200, "未知", True),
+        ]
+        for description, payload, code, expected, failure in cases:
+            server = serve_fixture(page, payload, code)
+            try:
                 browser.url = f"http://127.0.0.1:{server.server_port}/"
                 browser.open(browser.url)
-                browser.wait_status("未知")
-                audit(browser, expected_width=None, failure=True)
-                keyboard(browser, failure=True)
-        finally:
-            server.shutdown()
-            server.server_close()
-        print(f"PASS: Firefox graceful {description} fallback")
+                if failure:
+                    for _ in range(100):
+                        meta = browser.js(
+                            'return document.getElementById("status-meta")?.textContent || "";'
+                        )
+                        if meta == "无法读取公开状态数据":
+                            break
+                        time.sleep(0.1)
+                    else:
+                        raise AssertionError(f"Firefox {description}: fallback not rendered")
+                else:
+                    browser.wait_status(expected)
+                audit(browser, expected_width=None, failure=failure)
+                keyboard(browser, failure=failure)
+            finally:
+                server.shutdown()
+                server.server_close()
+            print(f"PASS: Firefox {description} responsive, keyboard and fallback checks")
+
 
 
 def main() -> int:
@@ -332,8 +346,7 @@ def main() -> int:
     for width in (320, 375, 768):
         scenario("chrome", width, page, version)
     scenario("chrome", None, page, version)
-    scenario("firefox", None, page, version)
-    failure_scenarios(page, version)
+    firefox_suite(page, version)
     print("PASS: Chrome mobile/desktop and Firefox keyboard, a11y, failure checks")
     return 0
 
