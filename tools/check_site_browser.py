@@ -20,8 +20,12 @@ import threading
 import urllib.request
 from urllib.parse import urlparse
 
-from build_public_status import WORKFLOWS, build_public_status
-from render_site import read_version
+if __package__:
+    from .build_public_status import WORKFLOWS, build_public_status
+    from .render_site import read_version
+else:
+    from build_public_status import WORKFLOWS, build_public_status
+    from render_site import read_version
 
 HEAD = "a" * 40
 OLD = "b" * 40
