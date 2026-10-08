@@ -40,7 +40,7 @@ class CompatibilityHarnessTests(unittest.TestCase):
         self.assertIn("return document.activeElement", source)
         for width in (320, 375, 768):
             self.assertIn(str(width), source)
-        self.assertIn('scenario("firefox"', source)
+        self.assertIn("def firefox_suite(", source)
         self.assertIn('("HTTP 503"', source)
         self.assertIn('("malformed JSON"', source)
 
