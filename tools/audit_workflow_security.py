@@ -109,6 +109,11 @@ def _job_permission_overrides(
         if job_match:
             job = job_match.group(1)
             continue
+        if re.match(r"^  \S", line):
+            # Inline/aliased job definitions cannot be inspected safely.
+            overrides.append(("<unsupported-job-declaration>", None))
+            job = None
+            continue
 
         if not re.match(r"^    permissions\s*:", line):
             continue
