@@ -11,6 +11,13 @@ on:
       - "tools/render_site.py"
       - "tools/check_site_links.py"
       - ".github/workflows/pages.yml"
+  # Keep the public feed in sync with both healthy and failed main CI snapshots.
+  workflow_run:
+    workflows: ["project-health"]
+    types: [completed]
+  # Re-evaluate expiration even during long periods with no code changes.
+  schedule:
+    - cron: "23 4 * * *"
   workflow_dispatch:
     inputs:
       permission_probe:
@@ -20,6 +27,7 @@ on:
         type: boolean
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -30,6 +38,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -38,6 +47,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Never checkout code from a workflow_run payload with write permissions.
+          ref: main
 
       - name: Audit current tree for accidental public exposure
         run: python tools/audit_public_exposure.py
@@ -78,6 +90,54 @@ jobs:
 
       - name: Render website from repository state
         run: python tools/render_site.py
+
+      - name: Fetch current-main health evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse HEAD)"
+          echo "PAGES_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+          mkdir -p health-source
+          source_id=0
+
+          # Select only the latest completed project-health run for the exact
+          # checked-out main SHA. Do not fall back to an older green artifact.
+          if gh api "repos/$GITHUB_REPOSITORY/actions/workflows/project-health.yml/runs?per_page=100" > health-runs.json; then
+            candidate="$(jq -r --arg sha "$main_sha" '
+              [.workflow_runs[]
+               | select(.head_sha == $sha and .event == "workflow_run" and .status == "completed")]
+              | sort_by(.id) | last | .id // empty
+            ' health-runs.json)"
+            if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+              if gh run download "$candidate" --repo "$GITHUB_REPOSITORY" --name project-health --dir health-source; then
+                if test -f health-source/project-health.json; then
+                  source_id="$candidate"
+                fi
+              fi
+            fi
+          else
+            echo "Health API unavailable; publishing unknown instead of old green status"
+          fi
+
+          echo "HEALTH_SOURCE_RUN_ID=$source_id" >> "$GITHUB_ENV"
+
+      - name: Render allowlisted public status
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test "$HEALTH_SOURCE_RUN_ID" -gt 0; then
+            python tools/build_public_status.py \
+              --snapshot health-source/project-health.json \
+              --main-sha "$PAGES_MAIN_SHA" \
+              --source-run-id "$HEALTH_SOURCE_RUN_ID" \
+              --output dist/site/status.json
+          else
+            python tools/build_public_status.py \
+              --main-sha "$PAGES_MAIN_SHA" \
+              --output dist/site/status.json
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -142,6 +202,36 @@ jobs:
           )
           PY
 
+
+      - name: Verify published status feed matches rendered JSON
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          expected = Path("dist/site/status.json").read_bytes()
+          page_url = os.environ["PAGE_URL"].rstrip("/")
+          uri = f"{page_url}/status.json?deployment={os.environ['GITHUB_SHA']}"
+          for attempt in range(1, 11):
+              try:
+                  req = urllib.request.Request(uri, headers={"Cache-Control": "no-cache"})
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      actual = response.read()
+                  if actual == expected:
+                      print("PASS: public status feed matches allowlisted JSON byte-for-byte")
+                      break
+              except Exception as exc:
+                  print(f"Status fetch attempt {attempt}: {type(exc).__name__}")
+              if attempt == 10:
+                  raise SystemExit("public status feed did not match deployed data")
+              time.sleep(3)
+          PY
 
       - name: Verify published project links
         env:

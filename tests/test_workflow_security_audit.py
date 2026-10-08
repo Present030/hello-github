@@ -131,6 +131,49 @@ jobs:
         )
         self.assertTrue(any("permissions" in item and "!= policy" in item for item in excess))
 
+    def test_pages_requires_explicit_project_health_event_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = """name: Deploy website to GitHub Pages
+on:
+  workflow_run:
+    workflows: ["project-health"]
+    types: [completed]
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo safe
+"""
+            path = write_workflow(root, "pages.yml", payload)
+            permissions = {
+                "actions": "read", "contents": "read",
+                "pages": "write", "id-token": "write",
+            }
+            self.assertEqual(
+                security.audit_workflow(
+                    path, expected_permissions=permissions, root=root
+                ),
+                [],
+            )
+            unsafe = payload.replace(
+                "github.event.workflow_run.head_branch == 'main'",
+                "github.event.workflow_run.head_branch != 'main'",
+            )
+            path.write_text(unsafe, encoding="utf-8")
+            self.assertTrue(
+                any("workflow_run lacks required guard" in item
+                    for item in security.audit_workflow(
+                        path, expected_permissions=permissions, root=root
+                    ))
+            )
+
     def test_workflow_run_requires_main_push_success_guards(self) -> None:
         findings = self.audit(
             """name: unsafe

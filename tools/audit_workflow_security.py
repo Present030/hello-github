@@ -35,7 +35,12 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
     "release-integrity.yml": {"contents": "read"},
     "permission-probe.yml": {"contents": "read", "issues": "write"},
     "cold-start-audit.yml": {"contents": "read"},
-    "pages.yml": {"contents": "read", "pages": "write", "id-token": "write"},
+    "pages.yml": {
+        "actions": "read",
+        "contents": "read",
+        "pages": "write",
+        "id-token": "write",
+    },
     "attestation-probe.yml": {
         "attestations": "write",
         "contents": "read",
@@ -243,11 +248,21 @@ def audit_workflow(
             errors.append(f"{relative}: Issue trigger lacks exact-title gate")
 
     if re.search(r"(?m)^\s{2}workflow_run:\s*$", text):
-        required_guards = (
-            "github.event.workflow_run.event == 'push'",
-            "github.event.workflow_run.head_branch == 'main'",
-            "github.event.workflow_run.conclusion == 'success'",
-        )
+        if path.name == "pages.yml":
+            # Pages consumes trusted project-health outcomes (including failed
+            # main CI), never a generic PR or user-selected workflow artifact.
+            required_guards = (
+                'workflows: ["project-health"]',
+                "github.event.workflow_run.name == 'project-health'",
+                "github.event.workflow_run.event == 'workflow_run'",
+                "github.event.workflow_run.head_branch == 'main'",
+            )
+        else:
+            required_guards = (
+                "github.event.workflow_run.event == 'push'",
+                "github.event.workflow_run.head_branch == 'main'",
+                "github.event.workflow_run.conclusion == 'success'",
+            )
         for guard in required_guards:
             if guard not in text:
                 errors.append(f"{relative}: workflow_run lacks required guard: {guard}")
