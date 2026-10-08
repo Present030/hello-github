@@ -353,6 +353,35 @@ HTTP API in Node.js where available, covering evidence states, mismatch,
 expiry and network fallback. ROADMAP item 05 still covers full browser and
 end-to-end dynamic deployment validation.
 
+### Real-browser end-to-end website regression (2026-10-08)
+
+ROADMAP 05 adds a real headless Chrome browser gate, separate from the existing
+Node.js mocked-DOM tests. `tools/check_site_browser.py` serves the **actual
+rendered** HTML over localhost and executes its JavaScript in Chrome. Fixture
+status JSON is constructed using `tools/build_public_status.py`, not an
+unverified alternate schema. Test scenarios cover successful current CI and
+historical Release/recovery, failed CI, stale data, version mismatch,
+contradictory healthy claims, HTTP 503, missing HTTP 404 and malformed JSON.
+The browser's produced DOM is examined for appropriate status labels.
+
+The browser job is now a required part of `workspace-ci gate`. It uses the
+GitHub-hosted Ubuntu runner's preinstalled Chrome, with no new runtime
+dependencies, external test server or additional GitHub Token permissions.
+Existing Ubuntu/Windows/macOS HTML byte-for-byte portability remains a
+separate required gate.
+
+After **every** Pages deployment, a Chrome smoke test visits the actual
+public website and compares the rendered overview to the deployed
+`status.json`, including expiry and version checks. The site cold-start
+audit likewise reconstructs HTML without a checked-out source, compares it
+byte-for-byte to published Pages, then exercises recovered HTML with browser
+fixtures and checks the public site in Chrome.
+
+The real-browser test uses headless Chrome only; multi-browser, mobile and
+accessibility acceptance remain separate ROADMAP item 12. Real failing-main
+CI delivery is not deliberately triggered here: the failure outcome is
+validated with an isolated synthetic status feed.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
