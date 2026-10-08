@@ -126,6 +126,21 @@ class PublicStatusTests(unittest.TestCase):
         self.assertEqual(payload["status"], "unknown")
         self.assertEqual(payload["reason"], "inconsistent_snapshot")
 
+    def test_invalid_nested_evidence_types_do_not_crash(self):
+        for field, value in (("state", []), ("conclusion", {}),
+                             ("id", False), ("head_sha", None)):
+            with self.subTest(field=field):
+                source = sample()
+                source["workflow_evidence"]["workspace-ci"][field] = value
+                result = self.build(source)
+                self.assertEqual(result["status"], "unknown")
+                self.assertEqual(result["reason"], "invalid_ci")
+
+    def test_invalid_kind_does_not_crash(self):
+        source = sample()
+        source["snapshot_kind"] = []
+        self.assertEqual(self.build(source)["reason"], "invalid_schema")
+
     def test_invalid_expected_main_sha_is_rejected(self):
         with self.assertRaises(ValueError):
             self.build(sample(), head="bad")
@@ -136,14 +151,14 @@ class PublicStatusTests(unittest.TestCase):
         self.assertIn('workflows: ["project-health"]', wf)
         self.assertIn('ref: main', wf)
         self.assertIn("actions: read", wf)
-        self.assertIn('name: project-health', wf)
+        self.assertIn("github.event.workflow_run.name == 'project-health'", wf)
         self.assertIn('sort_by(.id) | last', wf)
         self.assertIn('select(.head_sha == $sha', wf)
         self.assertIn('tools/build_public_status.py', wf)
-        self.assertIn('name: project-health', wf)
+        self.assertIn("github.event.workflow_run.name == 'project-health'", wf)
         self.assertIn('path: dist/site', wf)
         self.assertIn('public status feed matches allowlisted JSON byte-for-byte', wf)
-        self.assertNotIn("ref: \${{ github.event.workflow_run.head_sha }}", wf)
+        self.assertNotIn("ref: ${{ github.event.workflow_run.head_sha }}", wf)
 
 
 if __name__ == "__main__":
