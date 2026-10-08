@@ -144,6 +144,9 @@
       font-size: 0.9rem;
     }
 
+    .status-overview { margin: 8px 0 6px; font-size: 0.9rem; line-height: 1.5; }
+    .evidence { display: inline-block; margin-top: 10px; font-size: 0.78rem; }
+    .evidence[hidden] { display: none; }
     .note {
       margin-top: 28px;
       padding-top: 20px;
@@ -165,38 +168,44 @@
     <section class="status" aria-labelledby="status-title">
       <div class="status-header">
         <h2 id="status-title">项目状态</h2>
-        <span class="snapshot">VERSION 自动同步</span>
+        <span class="snapshot" id="status-meta">正在读取公开状态快照…</span>
       </div>
+
+      <p class="status-overview" id="status-overview" role="status" aria-live="polite">状态暂不可用</p>
 
       <div class="status-grid">
         <div class="status-card">
           <span class="status-label">Version</span>
-          <span class="status-value">v{{VERSION}}</span>
+          <span class="status-value" id="version-value">v{{VERSION}}</span>
           <span class="status-detail">当前正式版本</span>
         </div>
 
         <div class="status-card">
           <span class="status-label">CI</span>
-          <span class="status-value">Passing</span>
-          <span class="status-detail">主分支验证通过</span>
+          <span class="status-value" id="ci-value">未知</span>
+          <span class="status-detail" id="ci-detail">等待公开状态证据</span>
+          <a class="evidence" id="ci-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">Release</span>
-          <span class="status-value">Verified</span>
-          <span class="status-detail">正式发布物已验证</span>
+          <span class="status-value" id="release-value">未知</span>
+          <span class="status-detail" id="release-detail">等待公开状态证据</span>
+          <a class="evidence" id="release-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">Recovery</span>
-          <span class="status-value">Ready</span>
-          <span class="status-detail">自验证恢复包可用</span>
+          <span class="status-value" id="recovery-value">未知</span>
+          <span class="status-detail" id="recovery-detail">等待公开状态证据</span>
+          <a class="evidence" id="recovery-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
 
         <div class="status-card">
           <span class="status-label">SBOM</span>
-          <span class="status-value">Included</span>
-          <span class="status-detail">CycloneDX 1.6 已随 Release 发布</span>
+          <span class="status-value" id="sbom-value">未知</span>
+          <span class="status-detail" id="sbom-detail">等待公开状态证据</span>
+          <a class="evidence" id="sbom-evidence" hidden rel="noopener noreferrer" target="_blank">查看验证记录</a>
         </div>
       </div>
 
@@ -210,7 +219,10 @@
     </section>
 
     <p class="note">
-      版本号与对应 Release 下载链接会在部署时从仓库的 VERSION 自动生成；其余状态仍保持简洁的项目快照。
+      版本号和下载链接在部署时由 VERSION 生成；其他状态读取
+      <a href="./status.json">公开状态 JSON</a>。
+      历史验证不代表当前提交已通过；过期、网络异常或不匹配时显示“未知”。
+      <a id="health-evidence" hidden rel="noopener noreferrer" target="_blank">查看健康快照运行记录</a>
     </p>
   </main>
 </body>
