@@ -81,7 +81,7 @@ class UnattendedReleaseTests(unittest.TestCase):
     def test_real_cli_with_relative_output_path(self):
         # The earlier weekly run failed because the relative output folder was
         # prefixed twice when the extracted verifier inherited its own cwd.
-        (self.root / "VERSION").write_text("0.3.0\\n", encoding="utf-8")
+        (self.root / "VERSION").write_text("0.3.0\n", encoding="utf-8")
         (self.root / "metadata.json").write_text(
             json.dumps({"target_commitish": TARGET}), encoding="utf-8"
         )
