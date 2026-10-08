@@ -1,0 +1,9 @@
+# Check official GitHub Actions for newer releases without changing main.
+# Review all proposed SHA updates through the existing protected PR/CI process.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
