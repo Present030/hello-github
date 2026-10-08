@@ -43,6 +43,14 @@ EXPECTED_PERMISSIONS: dict[str, dict[str, str]] = {
     },
 }
 
+# Only these jobs may override their workflow-level GITHUB_TOKEN permissions.
+# All other jobs must inherit the explicitly audited workflow-level permissions.
+EXPECTED_JOB_PERMISSIONS: dict[str, dict[str, dict[str, str]]] = {
+    "cold-start-audit.yml": {
+        "site-cold-start": {"contents": "read", "pages": "read"},
+    },
+}
+
 BANNED_TRIGGERS = ("pull_request_target",)
 
 
@@ -68,6 +76,67 @@ def _top_level_permissions(text: str) -> dict[str, str] | None:
         if line.startswith("permissions:"):
             return {}
     return None
+
+
+
+def _job_permission_overrides(
+    text: str,
+) -> list[tuple[str, dict[str, str] | None]]:
+    """Read block-style job permissions; reject unsupported/dynamic forms.
+
+    The repository uses literal, two-space-indented job identifiers and
+    four-space-indented job fields. A None mapping marks an unsafe or
+    unparseable declaration rather than accepting a permissive default.
+    """
+    lines = text.splitlines()
+    overrides: list[tuple[str, dict[str, str] | None]] = []
+    in_jobs = False
+    job: str | None = None
+
+    for index, line in enumerate(lines):
+        if line == "jobs:":
+            in_jobs = True
+            job = None
+            continue
+        if not in_jobs:
+            continue
+        if line.strip() and not line.startswith((" ", "#")):
+            in_jobs = False
+            job = None
+            continue
+
+        job_match = re.fullmatch(r"  ([A-Za-z0-9_-]+):\s*(?:#.*)?", line)
+        if job_match:
+            job = job_match.group(1)
+            continue
+
+        if not re.match(r"^    permissions\s*:", line):
+            continue
+
+        if job is None or line != "    permissions:":
+            overrides.append((job or "<unknown>", None))
+            continue
+
+        mapping: dict[str, str] = {}
+        valid = True
+        for child in lines[index + 1 :]:
+            if not child.strip() or child.lstrip().startswith("#"):
+                continue
+            indentation = len(child) - len(child.lstrip(" "))
+            if indentation <= 4:
+                break
+            match = re.fullmatch(
+                r"      ([A-Za-z0-9-]+): (read|write|none)(?:\s+#.*)?",
+                child,
+            )
+            if match is None or match.group(1) in mapping:
+                valid = False
+                break
+            mapping[match.group(1)] = match.group(2)
+
+        overrides.append((job, mapping if valid else None))
+
+    return overrides
 
 
 def _run_blocks(text: str) -> list[str]:
@@ -106,6 +175,7 @@ def audit_workflow(
     path: Path,
     *,
     expected_permissions: dict[str, str],
+    expected_job_permissions: dict[str, dict[str, str]] | None = None,
     root: Path = ROOT,
 ) -> list[str]:
     text = path.read_text(encoding="utf-8")
@@ -124,6 +194,27 @@ def audit_workflow(
             f"{relative}: permissions {actual_permissions!r} != policy "
             f"{expected_permissions!r}"
         )
+
+    permitted_overrides = expected_job_permissions or {}
+    observed_overrides: set[str] = set()
+    for job, actual in _job_permission_overrides(text):
+        if job in observed_overrides:
+            errors.append(f"{relative}: duplicate job-level permissions for {job}")
+        observed_overrides.add(job)
+
+        expected = permitted_overrides.get(job)
+        if expected is None:
+            errors.append(
+                f"{relative}: unauthorized job-level permissions override in {job}"
+            )
+        elif actual != expected:
+            errors.append(
+                f"{relative}: job {job} permissions {actual!r} != policy "
+                f"{expected!r}"
+            )
+
+    for job in permitted_overrides.keys() - observed_overrides:
+        errors.append(f"{relative}: required job-level permissions missing for {job}")
 
     for action_name, ref in ACTION_USE_RE.findall(text):
         if FULL_SHA_RE.fullmatch(ref) is None:
@@ -178,6 +269,7 @@ def audit_repository(root: Path = ROOT) -> list[str]:
             audit_workflow(
                 path,
                 expected_permissions=expected,
+                expected_job_permissions=EXPECTED_JOB_PERMISSIONS.get(name, {}),
                 root=root,
             )
         )
@@ -198,7 +290,7 @@ def main() -> int:
         return 1
 
     print(
-        "PASS: workflow permissions, Issue gates, shell interpolation, "
+        "PASS: workflow and job permissions, Issue gates, shell interpolation, "
         "triggers, and official Action pins satisfy policy"
     )
     return 0
