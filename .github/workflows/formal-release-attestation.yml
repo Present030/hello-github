@@ -1,0 +1,108 @@
+# Historical witness: signatures prove a fresh verification of published bytes,
+# not that the original September 2026 build had an attestation.
+name: formal-release-attestation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/formal-release-attestation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sign-published:
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout current verification tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Retrieve published assets and independently established Release history
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p published-release
+          gh release download "v$version" --repo "$GITHUB_REPOSITORY" --dir published-release
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > formal-release.json
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs?per_page=100" \
+            > release-runs.json
+          python tools/check_release_readiness.py \
+            --release-json formal-release.json \
+            --runs-json release-runs.json \
+            --output release-readiness-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("release-readiness-result.json").read_text(encoding="utf-8"))
+          if not result["ready"]:
+              raise SystemExit(f"Refuse post-hoc witness of unverified Release: {result['reason']}")
+          print("PASS: corresponding original release workflow finished successfully")
+          PY
+          python tools/verify_formal_release_assets.py \
+            --release-json formal-release.json \
+            --release-dir published-release
+
+      - name: Sign five currently published Release asset digests
+        id: attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: 'published-release/*'
+
+      - name: Report historical witness (NOT original build provenance)
+        env:
+          ATTESTATION_ID: ${{ steps.attestation.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.attestation.outputs.attestation-url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ATTESTATION_ID"
+          test -n "$ATTESTATION_URL"
+          echo "POST_HOC_RELEASE_WITNESS_ID=$ATTESTATION_ID"
+          echo "POST_HOC_RELEASE_WITNESS_URL=$ATTESTATION_URL"
+          echo "Evidence is a fresh verification of existing bytes, not the original build attestation."
+
+  independent-verify:
+    needs: sign-published
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout independent verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Independently download exactly five formal assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p independently-downloaded
+          gh release download "v$version" --repo "$GITHUB_REPOSITORY" --dir independently-downloaded
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > independent-release.json
+          python tools/verify_formal_release_assets.py \
+            --release-json independent-release.json \
+            --release-dir independently-downloaded
+
+      - name: Cryptographically verify each published subject and signer workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for file in independently-downloaded/*; do
+            gh attestation verify "$file" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/formal-release-attestation.yml"
+          done
+          echo "PASS: five Release assets independently verified with post-hoc witness identity"
