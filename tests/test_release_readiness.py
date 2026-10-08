@@ -127,7 +127,7 @@ class ReleaseReadinessTests(unittest.TestCase):
     def test_api_unavailable_means_pending_not_ready(self):
         for missing in (None, {}, [], {"workflow_runs": []}, "not-json"):
             with self.subTest(missing=missing):
-                self.assertEqual(self.assess(history=missing)["reason"],
+                self.assertEqual(assess_release_readiness(version="0.3.0", release=release(), runs_payload=missing)["reason"],
                                  "release_verification_pending")
 
     def test_malformed_version_is_rejected(self):
@@ -160,11 +160,11 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertIn('workflows: ["project-health", "release"]', wf)
         self.assertIn("jobs:\n  release-ready:", wf)
         self.assertIn("    needs: release-ready", wf)
-        self.assertIn("if: \${{ needs.release-ready.outputs.ready == 'true' }}", wf)
+        self.assertIn("if: ${{ needs.release-ready.outputs.ready == 'true' }}", wf)
         self.assertIn("tools/check_release_readiness.py", wf)
         self.assertIn("github.event.workflow_run.name == 'release'", wf)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", wf)
-        self.assertIn("main_sha: \${{ steps.verify.outputs.main_sha }}", wf)
+        self.assertIn("main_sha: ${{ steps.verify.outputs.main_sha }}", wf)
         self.assertIn('test "$(git rev-parse HEAD)" = "$VERIFIED_MAIN_SHA"', wf)
         self.assertIn("      actions: read\n      contents: read", wf)
 
