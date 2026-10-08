@@ -408,10 +408,44 @@ audit likewise reconstructs HTML without a checked-out source, compares it
 byte-for-byte to published Pages, then exercises recovered HTML with browser
 fixtures and checks the public site in Chrome.
 
-The real-browser test uses headless Chrome only; multi-browser, mobile and
-accessibility acceptance remain separate ROADMAP item 12. Real failing-main
+The original ROADMAP 05 browser test covered Chrome alone; ROADMAP 12 adds
+Firefox and mobile keyboard/accessibility acceptance below. Real failing-main
 CI delivery is not deliberately triggered here: the failure outcome is
 validated with an isolated synthetic status feed.
+
+### Responsive, keyboard, and cross-browser acceptance (ROADMAP 12, 2026-10-08)
+
+[PR #102](https://github.com/Present030/hello-github/pull/102)
+merged as `main@bf0839c23d4e7a5089116657a82a36f480df188b`.
+It extends the required `browser-e2e` job: the existing Chrome fixtures for
+success, failed CI, stale or inconsistent evidence, HTTP 404/503 and malformed
+JSON remain mandatory. The new `tools/check_site_compatibility.py` uses only
+Python standard-library W3C WebDriver HTTP to control the **real** Chrome,
+Firefox and corresponding drivers preinstalled on GitHub's Ubuntu runner.
+There is no Selenium/Playwright Python runtime dependency.
+
+Verified on [PR CI run 37733879426](https://github.com/Present030/hello-github/actions/runs/37733879426):
+
+- Chrome mobile emulation at 320, 375, and 768 CSS pixels, plus 1280px
+  desktop: no horizontal overflow of tested content, correct page landmarks,
+  status semantics and dynamically populated evidence links.
+- Real WebDriver **Tab key input** traverses the initially hidden keyboard
+  skip link, then the visible CI / Release / Recovery / SBOM evidence links
+  and project navigation in a predictable order. Distinct accessible names
+  and an explicit focus-visible outline are retained.
+- Firefox desktop renders the healthy status and keyboard navigation,
+  and correctly degrades to unknown on HTTP 503 or malformed JSON.
+  Error-state evidence links are not keyboard-focusable.
+- Narrow-screen gutters, wrapping status heading, flexible status cards
+  and small metadata contrast were improved without changing the health
+  feed schema or JavaScript trust/failure behavior.
+
+The tested gates are functional checks, **not a complete WCAG audit** or
+a claim of compatibility with physical iOS/Android devices or every browser.
+Screen-reader usability, automatic contrast measurements and unsupported
+browser versions remain potential future audits. The automated checks run
+as part of the already-required `workspace-ci gate`, so PRs that regress
+these behaviors cannot pass the protected-main requirement.
 
 ### Verified Release prerequisite for Pages deployment (2026-10-08)
 

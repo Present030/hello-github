@@ -58,6 +58,7 @@ The main CI verifies:
 - The zipapp runs successfully.
 - Source and zipapp JSON reports agree.
 - Cross-platform builds produce a stable reproducible artifact.
+- Required real-browser checks run in Chrome and Firefox, including Chrome mobile reflow at 320/375/768 CSS px, keyboard Tab navigation, live status semantics, evidence-link accessibility and degraded network/error states. These do not constitute a full WCAG or physical-device audit.
 
 Official GitHub Actions are pinned to immutable full commit SHAs rather than movable major-version tags. The pinned artifact upload/download Actions were refreshed to v7.0.2/v8.0.2 on 2026-10-08; a monthly Dependabot check proposes future update PRs for review (never auto-merged).
 
