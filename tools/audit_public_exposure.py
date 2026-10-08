@@ -15,6 +15,8 @@ from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_TEXT_BYTES = 2 * 1024 * 1024
+# A deliberately small publication allowlist; expanding Pages requires review.
+PUBLIC_SITE_FILES = frozenset({"index.html", "status.json"})
 
 SAFE_EMAIL_DOMAINS = {
     "example.com",
@@ -304,6 +306,42 @@ def run_audit(*, history: bool, root: Path = ROOT) -> list[Finding]:
     return deduplicate(findings)
 
 
+def audit_public_directory(directory: Path) -> list[Finding]:
+    """Verify exactly the intended, inspectable Pages upload subjects.
+
+    Binary/oversize/unknown assets fail closed here. The repository/history
+    audit remains advisory for privacy indicators; this is a separate,
+    explicit PUBLICATION policy boundary.
+    """
+    if not directory.is_dir() or directory.is_symlink():
+        return [Finding("BLOCK", "missing-or-unsafe-public-dir", "public:.")]
+    findings: list[Finding] = []
+    observed: set[str] = set()
+    for entry in sorted(directory.rglob("*")):
+        relative = entry.relative_to(directory).as_posix()
+        location = f"public:{relative}"
+        if entry.is_symlink() or not entry.is_file():
+            findings.append(Finding("BLOCK", "unexpected-public-asset", location))
+            continue
+        if relative not in PUBLIC_SITE_FILES:
+            findings.append(Finding("BLOCK", "unexpected-public-asset", location))
+            continue
+        observed.add(relative)
+        # Refuse binary/unscannable publication; future media requires a
+        # separate explicit policy instead of assuming it was inspected.
+        if entry.stat().st_size > MAX_TEXT_BYTES:
+            findings.append(Finding("BLOCK", "unscannable-public-asset", location))
+            continue
+        contents = entry.read_bytes()
+        if _decode_text(contents) is None:
+            findings.append(Finding("BLOCK", "unscannable-public-asset", location))
+            continue
+        findings.extend(scan_path(relative, contents, location_prefix="public:"))
+    for missing in sorted(PUBLIC_SITE_FILES - observed):
+        findings.append(Finding("BLOCK", "missing-public-asset", f"public:{missing}"))
+    return deduplicate(findings)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -312,13 +350,23 @@ def main() -> int:
         help="scan all reachable Git blobs and commit email metadata",
     )
     parser.add_argument(
+        "--public-dir",
+        type=Path,
+        help="audit the exact rendered Pages output before public upload",
+    )
+    parser.add_argument(
         "--fail-on-advisory",
         action="store_true",
         help="also fail for privacy advisories",
     )
     args = parser.parse_args()
 
-    findings = run_audit(history=args.history)
+    if args.history and args.public_dir:
+        parser.error("--history and --public-dir are distinct audit modes")
+    findings = (
+        audit_public_directory(args.public_dir)
+        if args.public_dir else run_audit(history=args.history)
+    )
     blockers = [item for item in findings if item.severity == "BLOCK"]
     advisories = [item for item in findings if item.severity == "ADVISORY"]
 
@@ -327,17 +375,18 @@ def main() -> int:
 
     print(
         f"Exposure audit summary: blockers={len(blockers)} "
-        f"advisories={len(advisories)} history={args.history}"
+        f"advisories={len(advisories)} history={args.history} "
+        f"public={args.public_dir is not None}"
     )
 
     if blockers:
-        print("FAIL: high-confidence secret material detected; matched values are hidden.")
+        print("FAIL: secret or publication-policy violation; matched values are hidden.")
         return 1
     if advisories and args.fail_on_advisory:
         print("FAIL: privacy advisories detected; matched values are hidden.")
         return 2
 
-    print("PASS: no high-confidence secret material detected.")
+    print("PASS: no secret or public-asset policy violations detected.")
     return 0
 
 

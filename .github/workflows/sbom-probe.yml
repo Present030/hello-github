@@ -46,6 +46,9 @@ jobs:
           python tools/build_sbom.py             --artifact release/hello-github.pyz             --version "$version"             --output hello-github-second.cdx.json
           cmp hello-github.cdx.json hello-github-second.cdx.json
 
+      - name: Verify executable-only SBOM scope
+        run: python tools/check_sbom_scope.py --artifact release/hello-github.pyz --sbom hello-github.cdx.json
+
       - name: Verify SBOM against Release metadata
         shell: bash
         run: |
