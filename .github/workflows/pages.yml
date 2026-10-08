@@ -10,10 +10,11 @@ on:
       - "VERSION"
       - "tools/render_site.py"
       - "tools/check_site_links.py"
+      - "tools/check_release_readiness.py"
       - ".github/workflows/pages.yml"
   # Keep the public feed in sync with both healthy and failed main CI snapshots.
   workflow_run:
-    workflows: ["project-health"]
+    workflows: ["project-health", "release"]
     types: [completed]
   # Re-evaluate expiration even during long periods with no code changes.
   schedule:
@@ -37,8 +38,62 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release-ready:
+    # Only trusted main-branch completion events may launch this gate.
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.head_branch == 'main' && ((github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run') || (github.event.workflow_run.name == 'release' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'))) }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      ready: ${{ steps.verify.outputs.ready }}
+      main_sha: ${{ steps.verify.outputs.main_sha }}
+    steps:
+      - name: Checkout current main for VERSION
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+
+      - name: Fetch formal Release and release workflow evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          # A missing or incomplete release is a pending condition, not
+          # permission to publish broken links.
+          if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" > release-readiness.json; then
+            echo "Release v$version is not published or unavailable"
+            rm -f release-readiness.json
+          fi
+          if ! gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs?per_page=100" \
+            > release-runs.json; then
+            echo "Release workflow verification API unavailable; fail closed"
+            rm -f release-runs.json
+          fi
+
+      - name: Confirm release verification and asset readiness
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/check_release_readiness.py \
+            --version-file VERSION \
+            --release-json release-readiness.json \
+            --runs-json release-runs.json \
+            --output release-readiness-result.json
+          ready="$(python -c "import json; print(str(json.load(open('release-readiness-result.json', encoding='utf-8'))['ready']).lower())")"
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "$ready" != true ]]; then
+            echo "Pages publication deferred until the formal Release passes verification."
+          fi
+
   deploy:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.name == 'project-health' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main') }}
+    needs: release-ready
+    if: ${{ needs.release-ready.outputs.ready == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -50,6 +105,15 @@ jobs:
         with:
           # Never checkout code from a workflow_run payload with write permissions.
           ref: main
+
+      - name: Assert main did not advance after Release readiness check
+        shell: bash
+        env:
+          VERIFIED_MAIN_SHA: ${{ needs.release-ready.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$VERIFIED_MAIN_SHA"
+          echo "PASS: Pages source matches the release-ready main commit"
 
       - name: Audit current tree for accidental public exposure
         run: python tools/audit_public_exposure.py
