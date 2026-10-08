@@ -498,6 +498,61 @@ time, and does not substitute for the next real VERSION upgrade propagation
 check (ROADMAP 07). The actual scheduled Monday run remains a future
 trigger; CI and a push-triggered run of `health-check` validate this code.
 
+### Critical workflow incident alerts and recovery closure (2026-10-08)
+
+ROADMAP item 10 was implemented by [PR #97](https://github.com/Present030/hello-github/pull/97)
+and merged at `main@555ddf436decb6786683a31444750716f246dcc4`.
+The new `incident-monitor` listens to completed `workflow_run` events for
+`workspace-ci`, `project-health`, `release`,
+`Deploy website to GitHub Pages`, and `cold-start-audit`. The existing
+weekly `health-check` retains its independently verified
+`[health-check-failure]` Issue mechanism rather than creating competing
+alerts. Experimental probes are excluded.
+
+Only matching events for the repository's own `main` runs are actionable.
+The monitoring job checks out **protected current `main`**, never source
+or artifacts from the triggering workflow. Its token has only
+`actions: read`, `contents: read`, and `issues: write`; monitoring is
+serialized per workflow ID. An exact-title open Issue
+(`[workflow-failure] <workflow-name>`) is reused on later failures,
+with newer failure evidence and an Actions link; stale/duplicate events
+cannot replace newer evidence. A later successful run closes an open Issue
+with a recovery-run reference. A failed `project-health` run caused by a
+failed upstream main CI is treated as part of the CI incident, not an
+independent duplicate alarm. Re-run attempts are compared by run ID and
+attempt number.
+
+`project-health` also now uploads its already-generated snapshot even
+when the snapshot builder deliberately exits nonzero for `degraded`
+health. The workflow itself **remains failed**; diagnostic publication
+does not convert a degraded result into success.
+
+A real post-merge race exercised the new alert lifecycle without
+deliberately introducing a bad commit:
+
+- [Pages run 37722716153](https://github.com/Present030/hello-github/actions/runs/37722716153)
+  failed safely because its release-readiness gate had captured previous
+  `main@8446d827`, while the subsequent checkout saw new `main@555ddf43`.
+  The SHA equality check correctly prevented a mismatched deployment.
+- [incident-monitor run 37722743804](https://github.com/Present030/hello-github/actions/runs/37722743804)
+  opened [Issue #98](https://github.com/Present030/hello-github/issues/98)
+  with the failure run, commit, and conclusion.
+- After [main CI run 37722731855](https://github.com/Present030/hello-github/actions/runs/37722731855)
+  and [project-health run 37722818179](https://github.com/Present030/hello-github/actions/runs/37722818179)
+  succeeded, [Pages run 37722837944](https://github.com/Present030/hello-github/actions/runs/37722837944)
+  successfully deployed from the new main.
+- [incident-monitor run 37722883540](https://github.com/Present030/hello-github/actions/runs/37722883540)
+  posted the recovery link and automatically closed Issue #98. This
+  confirms **real** failure detection, Issue creation, recovery evidence,
+  and closure.
+
+Synthetic tests cover repeat failures, old/duplicate events, newer
+successes, rerun attempts, out-of-scope runs, and suppression of expected
+secondary `project-health` failures. Those paths have **test coverage**;
+the real incident above does not independently prove every adversarial
+case. No intentionally failing protected-main CI commit or artificial
+version change was used.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
