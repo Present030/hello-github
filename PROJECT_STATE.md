@@ -75,6 +75,38 @@ Review Can not approve your own pull request
 
 Independent approval therefore still requires another GitHub identity.
 
+### Independent review readiness (ROADMAP 14, audited 2026-10-08)
+
+Read-only audit of the active
+[`main-protection` Ruleset](https://github.com/Present030/hello-github/rules/24155190)
+(ID `24155190`) confirms: PRs and `workspace-ci gate` are mandatory,
+force-push and deletion are blocked, and there are **no bypass actors**.
+Its pull-request rule has `required_approving_review_count: 0`,
+`dismiss_stale_reviews_on_push: false`, and
+`required_review_thread_resolution: false`. The most recent inspected
+PRs #100, #106, and #108 contain **no submitted approval reviews**.
+This is not proof that only one collaborator exists: the connected GitHub
+API does **not** permit collaborator-list enumeration.
+
+The repository retains its deliberate single-maintainer configuration.
+Requiring 1 approval before confirming that an independent, available
+human reviewer has write permission could block every future PR; the
+original author cannot self-approve. The connector can read Rulesets and
+PR reviews but has no Ruleset administration mutation action, and the
+legacy branch-protection endpoint still returns `403`. No fake
+reviewer, fabricated independent approval or speculative policy change
+has been made.
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) now documents the
+**activation gate**: confirm a second qualified reviewer; change the
+existing Ruleset in GitHub's web UI to require 1 independent approval,
+dismiss stale approvals and resolve review conversations; preserve
+`workspace-ci gate` and no-bypass protections; verify the saved Ruleset;
+and test a real PR's merge rejection before approval, acceptance after
+approval, and fresh-approval requirement after a new push. Record those
+links before checking ROADMAP 14. **Only the preparation is complete;
+required independent approvals are not yet enabled.**
+
 ## CI and reproducible executable delivery
 
 Linux CI runs Python 3.11, 3.12, and 3.13.
