@@ -10,7 +10,7 @@ This is the durable backlog for the Persistent Workspace Lab. It distinguishes v
 - [x] **02. Define health evidence freshness and scope.** Distinguish current, historical, unknown, and stale evidence. Extend checks to relevant website/recovery workflows; document how timestamps and version/commit relationships affect health.
 - [x] **03. Publish an anonymous-safe status feed for Pages.** Expose a stable structured resource derived from controlled Actions evidence; ensure no private tokens or internal data reach the public site.
 - [x] **04. Render real project status on the website.** Replace hard-coded CI/Release/Recovery/SBOM labels with evidence-backed status, timestamps, and links. Make unavailable data visibly unknown rather than silently green.
-- [ ] **05. Test the dynamic website end-to-end.** Cover success, failure, stale data, network errors, cross-platform rendering, cold-start recovery, and verification of the published site.
+- [x] **05. Test the dynamic website end-to-end.** Cover success, failure, stale data, network errors, cross-platform rendering, cold-start recovery, and verification of the published site.
 
 ## P1 — Publication and operational closure
 
