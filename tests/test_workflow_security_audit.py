@@ -23,6 +23,7 @@ class WorkflowSecurityAuditTests(unittest.TestCase):
         content: str,
         *,
         permissions: dict[str, str] | None = None,
+        job_permissions: dict[str, dict[str, str]] | None = None,
     ) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -30,6 +31,7 @@ class WorkflowSecurityAuditTests(unittest.TestCase):
             return security.audit_workflow(
                 path,
                 expected_permissions=permissions or {"contents": "read"},
+                expected_job_permissions=job_permissions or {},
                 root=root,
             )
 
@@ -166,6 +168,195 @@ jobs:
         )
         self.assertTrue(any("repository-owner gate" in item for item in findings))
         self.assertTrue(any("exact-title gate" in item for item in findings))
+
+
+    def test_accepts_explicitly_allowed_job_permissions(self) -> None:
+        content = """name: cold-start
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  cold-start:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo safe
+  site-cold-start:
+    permissions:
+      contents: read
+      pages: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo safe
+"""
+        self.assertEqual(
+            self.audit(
+                content,
+                job_permissions={
+                    "site-cold-start": {"contents": "read", "pages": "read"}
+                },
+            ),
+            [],
+        )
+
+    def test_rejects_unapproved_job_permissions_override(self) -> None:
+        findings = self.audit(
+            """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  unexpected:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+"""
+        )
+        self.assertTrue(
+            any("unauthorized job-level permissions override" in item for item in findings)
+        )
+
+    def test_rejects_job_permission_escalation(self) -> None:
+        content = """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  site-cold-start:
+    permissions:
+      contents: write
+      pages: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+"""
+        findings = self.audit(
+            content,
+            job_permissions={
+                "site-cold-start": {"contents": "read", "pages": "read"}
+            },
+        )
+        self.assertTrue(
+            any("job site-cold-start permissions" in item and "!= policy" in item
+                for item in findings)
+        )
+
+    def test_rejects_extra_job_token_scope(self) -> None:
+        content = """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  site-cold-start:
+    permissions:
+      contents: read
+      pages: read
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+"""
+        findings = self.audit(
+            content,
+            job_permissions={
+                "site-cold-start": {"contents": "read", "pages": "read"}
+            },
+        )
+        self.assertTrue(any("job site-cold-start permissions" in x for x in findings))
+
+    def test_rejects_unsupported_or_duplicate_job_permissions(self) -> None:
+        boilerplate = """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  site-cold-start:
+{declaration}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+"""
+        variants = (
+            "    permissions: write-all",
+            "    permissions: ${{ github.event_name }}",
+            "    permissions: {contents: read, pages: read}",
+            "    permissions:\n      contents: read\n      contents: read\n      pages: read",
+            "    permissions:\n      contents: read\n      pages: read\n    permissions:\n      contents: read\n      pages: read",
+        )
+        for declaration in variants:
+            with self.subTest(declaration=declaration):
+                findings = self.audit(
+                    boilerplate.format(declaration=declaration),
+                    job_permissions={
+                        "site-cold-start": {"contents": "read", "pages": "read"}
+                    },
+                )
+                self.assertTrue(
+                    any("job site-cold-start permissions" in item or
+                        "duplicate job-level permissions" in item
+                        for item in findings)
+                )
+
+    def test_rejects_unsupported_inline_job_definition(self) -> None:
+        findings = self.audit(
+            """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  unexpected: {permissions: {contents: write}, runs-on: ubuntu-latest}
+"""
+        )
+        self.assertTrue(
+            any("unauthorized job-level permissions override" in item for item in findings)
+        )
+
+    def test_requires_approved_job_permission_declaration(self) -> None:
+        findings = self.audit(
+            """name: unsafe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  site-cold-start:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unsafe
+""",
+            job_permissions={
+                "site-cold-start": {"contents": "read", "pages": "read"}
+            },
+        )
+        self.assertTrue(
+            any("required job-level permissions missing" in item for item in findings)
+        )
+
+    def test_ignores_permission_like_text_inside_run_block(self) -> None:
+        findings = self.audit(
+            """name: safe
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo '    permissions:'
+          echo '      contents: write'
+"""
+        )
+        self.assertEqual(findings, [])
+
 
 
 if __name__ == "__main__":
