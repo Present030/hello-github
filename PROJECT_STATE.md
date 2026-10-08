@@ -285,6 +285,43 @@ item 01 retains its evidence of non-success main CI and does not pretend the
 other audits were executed. A future public status feed must evaluate snapshot
 age at viewing time and avoid publishing an old `healthy` as live status.
 
+### Public Pages status feed (2026-10-08)
+
+The `Deploy website to GitHub Pages` workflow now publishes
+`https://present030.github.io/hello-github/status.json`, with
+`schema: hello-github-public-status/v1`. The status is generated from a
+`project-health` Actions artifact, **not** copied wholesale.
+
+On Pages deployment, the workflow checks out **current `main`**, lists completed
+`project-health` workflow runs, and selects only the latest run whose
+`head_sha` matches that checked-out commit. It downloads the
+`project-health` artifact with job-scoped minimal required read access
+(`actions: read`) and passes it to `tools/build_public_status.py`.
+
+The exporter permits only a fixed set of keys: overall status, version,
+Release tag and boolean asset presence, selected CI/recovery/Pages workflow
+IDs, conclusions, related commit SHAs and timestamps. No arbitrary fields,
+raw workflow output, secrets, or token values are published. Missing,
+malformed, expired (older than **30 days**), or mismatched evidence produces
+`unknown`, not a previous `healthy` result. The public document includes
+`published_at`, `source_generated_at`, `source_run_id`, `head_sha` and
+`expires_at`. The expiry derives from the source snapshot, **not** the Pages
+re-deployment time: re-deploying the same historical health artifact does not
+reset its age.
+
+Pages deployment runs on site changes, on completed `project-health` runs,
+and on a daily schedule to re-evaluate expiry without code changes. The
+deployed JSON is fetched and compared byte-for-byte to the local, filtered
+JSON; any discrepancy fails the deployment workflow. The Pages job checks
+out default-branch source rather than potentially untrusted workflow-run
+source. It gains `actions: read` but no repository write permission.
+
+The site's existing HTML cards are still static. Roadmap item 04 will read
+this feed and **re-check `expires_at` in the browser**; a static JSON
+response cannot mutate itself after deployment. A failure in the Pages
+deployment could also leave an older public document accessible, so the
+expiry check is a consumer responsibility.
+
 ## Cold-start recovery
 
 A new ChatGPT session can reconstruct the project without relying on a previous sandbox or chat transcript by reading:
