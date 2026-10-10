@@ -21,6 +21,17 @@ The repository is the source of truth. Temporary sandbox files and individual Ac
 - Executable SHA-256: `a9ebb8c1e1bfd8686d3fdeacf1441e3388a13d6749ee98707f5f5167e9d6c30a`.
 - Runtime dependencies: Python standard library only.
 
+### CLI `--field` completion (2026-10-10)
+
+[Issue #112](https://github.com/Present030/hello-github/issues/112) was closed
+automatically by merged [PR #113](https://github.com/Present030/hello-github/pull/113),
+bringing `--field KEY` into `main` at
+[merge commit `616b084a`](https://github.com/Present030/hello-github/commit/616b084a5560e91d1c90fe2eeca17fac2bd564ab).
+Post-merge [CI run #38041065750](https://github.com/Present030/hello-github/actions/runs/38041065750)
+passed all 12 jobs, including `workspace-ci gate`. See [README](README.md)
+for CLI usage. `VERSION` remains `0.3.0`; the existing formal
+`v0.3.0` Release and its published assets were not updated.
+
 ## Verified GitHub connector capabilities
 
 - Read repository metadata and exact file contents.
