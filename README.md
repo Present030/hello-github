@@ -24,6 +24,7 @@ The ChatGPT sandbox is treated as disposable. GitHub is the source of truth.
 python -m hello_github
 python -m hello_github --version
 python -m hello_github --json
+python -m hello_github --field python
 python -m unittest discover -s tests -v
 ```
 
@@ -37,7 +38,15 @@ The project has no third-party runtime dependencies.
 python tools/build_zipapp.py --output dist/hello-github.pyz
 python dist/hello-github.pyz --version
 python dist/hello-github.pyz --json
+python dist/hello-github.pyz --field system
 ```
+
+`--field KEY` prints only the selected value from the same runtime report as `--json`:
+`message` (greeting), `version` (application version), `python` (active Python version),
+`implementation` (Python implementation), `system` (operating system), and
+`machine` (machine architecture). Invalid keys produce a CLI error and a nonzero
+exit status; `--field` and `--json` cannot be used together.
+The zipapp example builds from the current source; existing published Release assets are unchanged.
 
 The builder normalizes Python source newlines and fixes ZIP member ordering, timestamps, permissions, and compression settings. This makes the built artifact independent of Windows CRLF checkout conversion.
 
