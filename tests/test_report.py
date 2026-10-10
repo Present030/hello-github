@@ -70,6 +70,19 @@ class ReportTests(unittest.TestCase):
         self.assertIn("--field", completed.stderr)
         self.assertIn("--json", completed.stderr)
 
+    def test_field_cli_prints_report_values(self) -> None:
+        report = build_report()
+        for field in ("message", "version", "python", "implementation", "system", "machine"):
+            with self.subTest(field=field):
+                completed = subprocess.run(
+                    [sys.executable, "-m", "hello_github", "--field", field],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(completed.stdout, f"{report[field]}\n")
+                self.assertEqual(completed.stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main()
