@@ -47,5 +47,29 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(completed.stdout.strip(), __version__)
 
 
+    def test_field_cli_rejects_unknown_field_without_traceback(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "-m", "hello_github", "--field", "nonexistent-field"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout, "")
+        self.assertNotIn("Traceback", completed.stderr)
+        self.assertIn("--field", completed.stderr)
+        self.assertIn("nonexistent-field", completed.stderr)
+
+    def test_field_cli_rejects_json_conflict(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "-m", "hello_github", "--field", "python", "--json"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout, "")
+        self.assertIn("--field", completed.stderr)
+        self.assertIn("--json", completed.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
