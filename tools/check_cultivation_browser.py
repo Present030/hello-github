@@ -212,6 +212,7 @@ def test(browser: Browser, url: str) -> None:
         assert browser.js("return document.getElementById('realm').textContent;") == target
 
     # A death due to aging is final until the player explicitly reincarnates.
+    previous_generation = saved(browser)["generation"]
     overwrite(browser, {"realm": 0, "age": 75 * 365 - 2, "qi": 0})
     browser.js("""
         const x=JSON.parse(localStorage.getItem(arguments[0]));
@@ -220,12 +221,12 @@ def test(browser: Browser, url: str) -> None:
     """, KEY)
     browser.open(url)
     death = saved(browser)
-    assert death["dead"] and death["generation"] == 1, death
+    assert death["dead"] and death["generation"] == previous_generation, death
     assert browser.js('return !document.getElementById("rebirth").hidden;')
     assert browser.js('return document.getElementById("journal").children.length;') >= 70
     browser.js('document.getElementById("rebirth").click();')
     reborn = saved(browser)
-    assert not reborn["dead"] and reborn["generation"] == 2 and reborn["realm"] == 0
+    assert not reborn["dead"] and reborn["generation"] == previous_generation + 1 and reborn["realm"] == 0
     assert reborn["marks"] >= 1 and reborn["qi"] == 0, reborn
 
     # High-realm tribulation can still be fatal.
