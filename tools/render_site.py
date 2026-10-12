@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
 
 VERSION_TOKEN = "{{VERSION}}"
@@ -38,6 +39,12 @@ def main() -> int:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(rendered, encoding="utf-8", newline="\n")
+    # Publish the self-contained game alongside the existing status page.
+    # The final public-directory audit still enforces an exact asset allowlist.
+    game_source = args.template.with_name("game.html")
+    if game_source.is_file():
+        shutil.copyfile(game_source, args.output.with_name("game.html"))
+
     print(f"Rendered {args.output} for v{version}")
     return 0
 
