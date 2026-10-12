@@ -11,69 +11,107 @@
 :root{color-scheme:light;background:#f3f0e8;color:#28332e;font-family:"Songti SC","Noto Serif CJK SC",SimSun,serif}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden}
-.page{max-width:850px;width:calc(100% - 32px);height:100vh;height:100dvh;margin:auto;
-  padding:12px 0 8px;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:9px;overflow:hidden}
-a{color:#356359}h1{font-size:clamp(1.5rem,4vw,2rem);font-weight:500;letter-spacing:.13em;margin:0}
-h2{font-size:1.08rem;letter-spacing:.07em;margin:0 0 12px}
-p{line-height:1.6;margin:8px 0}
-.small,dt,footer{color:#66746e;font-size:.82rem}
-header{border-bottom:2px solid #455c50;padding-bottom:6px;min-width:0}
+.page{max-width:1120px;width:calc(100% - 26px);height:100vh;height:100dvh;margin:auto;
+  padding:10px 0 8px;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:8px;overflow:hidden}
+a{color:#356359}
+h1{font-size:clamp(1.45rem,3.5vw,2rem);font-weight:500;letter-spacing:.13em;margin:0}
+h2{font-size:1.02rem;letter-spacing:.07em;margin:0}
+p{line-height:1.55;margin:5px 0}
+.small,dt,footer{color:#66746e;font-size:.78rem}
+header{border-bottom:2px solid #455c50;padding-bottom:5px;min-width:0}
 .head-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.tagline{margin:2px 0 0;font-size:.79rem;color:#68756e}
-.status-panel{border:1px solid #b6bfb4;padding:10px 13px;min-width:0}
-.status-panel h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px 12px;margin:0}
-dl>div{min-width:0}dt{margin:0 0 2px;font-size:.73rem}dd{font-size:.96rem;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagline{margin:2px 0 0;font-size:.75rem;color:#68756e}
+.status-panel{border:1px solid #b6bfb4;padding:8px 12px;min-width:0}
+.status-panel>h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 12px;margin:0}
+dl>div{min-width:0}dt{margin:0 0 2px;font-size:.70rem}
+dd{font-size:.95rem;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .full{grid-column:auto}
 .status-panel>.small{display:none}
-.notice{border-left:3px solid #627e6f;background:#e7e6dc;padding:6px 10px;margin:7px 0 0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.77rem}
-.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-width:0}
-button{font:inherit;color:#233d34;background:transparent;border:1px solid #7b8d7c;padding:8px 12px;
-  min-height:39px;cursor:pointer}
+.notice{border-left:3px solid #627e6f;background:#e7e6dc;padding:5px 8px;margin:6px 0 0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}
+.dashboard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.06fr);
+  gap:9px;min-height:0;overflow:hidden}
+.controls{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-width:none}
+.controls::-webkit-scrollbar{display:none}
+.control-section{border:1px solid #b6bfb4;padding:10px 12px;min-width:0;flex:none}
+.control-section h2{margin-bottom:6px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0}
+button{font:inherit;color:#233d34;background:transparent;border:1px solid #7b8d7c;padding:7px 11px;
+  min-height:37px;cursor:pointer;font-size:.9rem}
 button:hover:not(:disabled){background:#e1e9df}
-button:focus-visible,a:focus-visible,.panel:focus-visible{outline:3px solid #8f6131;outline-offset:2px}
+button:focus-visible,a:focus-visible,.journal-list:focus-visible{outline:3px solid #8f6131;outline-offset:2px}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.primary{background:#355c4f;color:white;border-color:#355c4f}
 button[aria-pressed="true"]{background:#d2dfd2;border-color:#355c4f;font-weight:700}
-.tabs button{font-size:.93rem;background:#e9e8e0;min-width:0}
-.tabs button[aria-selected="true"]{background:#355c4f;color:#fff;border-color:#355c4f;font-weight:700}
-.panels{border:1px solid #b6bfb4;min-width:0;min-height:0;overflow:hidden}
-.panel{height:100%;overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:13px 17px;
-  scrollbar-width:none}
-.panel::-webkit-scrollbar{display:none}
-.panel[hidden]{display:none}
-.panel .small{font-size:.81rem}
-.actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
-.warn{color:#795138;border-left:3px solid #ad7d59;padding-left:13px}
+.action-text{color:#617268;font-size:.78rem;white-space:normal}
+.gate-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gate-row p{min-width:0;flex:1;font-size:.88rem}
+.gate-row button{flex:none}
+.warn{color:#795138;border-left:3px solid #ad7d59;padding-left:9px;font-size:.76rem}
+.legacy-section{background:#eeede5}
+.legacy-section #legacy{font-size:.79rem;line-height:1.45;overflow-wrap:anywhere}
+.legacy-section .small{margin-bottom:0}
 [hidden]{display:none!important}
-ol{list-style:none;padding:0;margin:0}
-li{border-bottom:1px dashed #bec5b9;padding:10px 0;line-height:1.6}
-li:last-child{border:0}
-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:21px;
-  overflow:hidden;white-space:nowrap;font-size:.73rem}
+.chronicle{border:1px solid #b6bfb4;display:grid;grid-template-rows:auto minmax(0,1fr);
+  min-height:0;min-width:0;overflow:hidden}
+.journal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border-bottom:1px solid #b6bfb4;padding:10px 12px}
+.journal-head span{font-size:.74rem;color:#63756a}
+.journal-list{list-style:none;padding:0 13px;margin:0;min-height:0;overflow:auto;
+  overscroll-behavior:contain;scrollbar-width:none}
+.journal-list::-webkit-scrollbar{display:none}
+.journal-list li{border-bottom:1px dashed #bec5b9;padding:10px 0;line-height:1.55;font-size:.87rem}
+.journal-list li:last-child{border:0}
+footer{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:20px;
+  overflow:hidden;white-space:nowrap;font-size:.72rem}
 footer span{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:690px){
+  .dashboard{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:6px}
+  .controls{gap:5px;overflow:visible}
+  .control-section{padding:7px 9px}
+  .control-section h2{font-size:.94rem;margin-bottom:2px}
+  .actions{flex-wrap:nowrap;margin:4px 0;gap:5px}
+  .actions button{min-width:0;flex:1;padding:5px 4px;min-height:33px;font-size:.83rem}
+  .action-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.73rem}
+  .gate-row button{min-height:32px}
+  .gate-row p{font-size:.78rem}
+  .warn{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .legacy-section{padding:4px 9px;display:flex;align-items:center;gap:8px}
+  .legacy-section h2{flex:none}
+  .legacy-section #legacy{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;font-size:.75rem}
+  .legacy-section .small{display:none}
+  .journal-head{padding:6px 10px}
+  .journal-list li{padding:7px 0;font-size:.82rem}
+}
 @media(max-width:480px){
-  .page{width:calc(100% - 22px);padding:8px 0 5px;gap:6px}
-  .head-row{gap:7px}h1{font-size:1.65rem}
-  .tagline{display:none}
-  .status-panel{padding:8px 10px}
-  dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
-  dt{font-size:.71rem}dd{font-size:.92rem}
-  .panel{padding:12px}
-  .actions button{flex-grow:1}
-  .tabs button{font-size:.85rem;padding:6px;min-height:39px}
+  .page{width:calc(100% - 18px);padding:5px 0 4px;gap:5px}
+  h1{font-size:1.5rem}.tagline{display:none}
+  .status-panel{padding:6px 8px}
+  dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 9px}
+  dt{font-size:.66rem}dd{font-size:.86rem}
+  .notice{padding:3px 6px;font-size:.7rem}
+  .control-section{padding:5px 8px}
+  .control-section h2{font-size:.86rem}
+  .gate-row p{font-size:.74rem}
+  .legacy-section{padding:4px 8px}
+  footer{font-size:.68rem}
 }
-@media(max-height:630px) {
-  .page{gap:5px;padding-top:5px}
-  h1{font-size:1.55rem}
+@media(max-height:620px) {
+  .page{gap:4px}
+  h1{font-size:1.42rem}
   .tagline{display:none}
-  .status-panel{padding:6px 10px}
-  dl{gap:4px 10px}
-  dt{font-size:.68rem}dd{font-size:.86rem}
-  .panel{padding:8px 12px}
-  footer{font-size:.69rem}
+  .status-panel{padding:5px 8px}
+  dl{gap:3px 9px}
+  dt{font-size:.65rem}dd{font-size:.83rem}
+  .control-section{padding:5px 8px}
+  .control-section h2{font-size:.85rem}
+  .actions button{min-height:31px}
+  .action-text{font-size:.7rem}
+  footer{font-size:.67rem}
 }
+
 </style>
 </head>
 <body>
@@ -83,61 +121,54 @@ footer span{overflow:hidden;text-overflow:ellipsis}
   <p class="tagline">人之一世，不过须臾。问道有生死，长生无坦途。</p>
 </header>
 <section class="status-panel" aria-labelledby="status-title">
-<h2 id="status-title">此生</h2>
-<dl>
-<div><dt>世次</dt><dd id="generation">—</dd></div>
-<div><dt>灵根</dt><dd id="root">—</dd></div>
-<div><dt>境界</dt><dd id="realm">—</dd></div>
-<div><dt>寿元</dt><dd id="life">—</dd></div>
-<div class="full"><dt>修为</dt><dd id="qi">—</dd></div>
-<div><dt>灵草 / 灵石</dt><dd id="resources">—</dd></div>
-<div><dt>丹药 / 护脉药力</dt><dd id="pills">—</dd></div>
-<div class="full"><dt>当前行动</dt><dd id="action">—</dd></div>
-</dl>
-<p id="offline" class="notice" role="status" hidden></p>
-<p class="small">现实每秒约流逝修仙界一日；离线最多结算四小时。寿元会随时间流逝。</p>
+  <h2 id="status-title">此生</h2>
+  <dl>
+    <div><dt>世次</dt><dd id="generation">—</dd></div>
+    <div><dt>灵根</dt><dd id="root">—</dd></div>
+    <div><dt>境界</dt><dd id="realm">—</dd></div>
+    <div><dt>寿元</dt><dd id="life">—</dd></div>
+    <div><dt>修为</dt><dd id="qi">—</dd></div>
+    <div><dt>灵草 / 灵石</dt><dd id="resources">—</dd></div>
+    <div><dt>丹药 / 护脉</dt><dd id="pills">—</dd></div>
+    <div><dt>当前行动</dt><dd id="action">—</dd></div>
+  </dl>
+  <p id="offline" class="notice" role="status" hidden></p>
+  <p class="small">现实每秒流逝修仙界一日；离线最多结算四小时。</p>
 </section>
-<nav class="tabs" role="tablist" aria-label="修仙页面">
-<button type="button" role="tab" id="tab-practice" data-panel="practice" aria-controls="panel-practice" aria-selected="true" tabindex="0">修炼</button>
-<button type="button" role="tab" id="tab-fate" data-panel="fate" aria-controls="panel-fate" aria-selected="false" tabindex="-1">突破</button>
-<button type="button" role="tab" id="tab-legacy" data-panel="legacy" aria-controls="panel-legacy" aria-selected="false" tabindex="-1">轮回</button>
-<button type="button" role="tab" id="tab-journal" data-panel="journal" aria-controls="panel-journal" aria-selected="false" tabindex="-1">纪事</button>
-</nav>
-<div class="panels">
-<section class="panel" id="panel-practice" role="tabpanel" aria-labelledby="tab-practice" tabindex="0">
-<h2 id="actions-title">日常修行</h2>
-<p>选择一项行动，角色就会持续进行。重要突破需要你亲自决定。</p>
-<div class="actions" role="group" aria-label="当前放置行动">
-<button id="cultivate" type="button" aria-pressed="true">闭关吐纳</button>
-<button id="gather" type="button" aria-pressed="false">入山采药</button>
+<div class="dashboard">
+  <div class="controls">
+    <section class="control-section" aria-labelledby="actions-title">
+      <h2 id="actions-title">修行</h2>
+      <div class="actions" role="group" aria-label="常用修行操作">
+        <button id="cultivate" type="button" aria-pressed="true">闭关</button>
+        <button id="gather" type="button" aria-pressed="false">采药</button>
+        <button id="brew" type="button">炼丹</button>
+        <button id="pill" type="button">服丹</button>
+      </div>
+      <p id="rate" class="action-text">—</p>
+      <p class="small" title="炼丹需灵草五株、灵石两枚；成功率八成。丹药只提升下一次突破，不能叠加。">炼丹：灵草 5、灵石 2；护脉丹仅强化下次突破。</p>
+    </section>
+    <section class="control-section" aria-labelledby="gate-title">
+      <h2 id="gate-title">命关</h2>
+      <div class="gate-row">
+        <p id="gate">—</p>
+        <button id="break" class="primary" type="button">尝试突破</button>
+        <button id="rebirth" class="primary" type="button" hidden>转世重修</button>
+      </div>
+      <p id="danger" class="warn">—</p>
+    </section>
+    <section class="control-section legacy-section" aria-labelledby="legacy-title">
+      <h2 id="legacy-title">轮回簿</h2>
+      <p id="legacy">—</p>
+      <p class="small">此世身死、道痕长存；转世不继承修为与物资。</p>
+    </section>
+  </div>
+  <section class="chronicle" aria-labelledby="journal-title">
+    <div class="journal-head"><h2 id="journal-title">修行纪事</h2><span id="journal-count">本世 0 条</span></div>
+    <ol class="journal-list" id="journal" aria-label="本世完整修行纪事，最新在前" tabindex="0"></ol>
+  </section>
 </div>
-<p id="rate" class="small">—</p>
-<div class="actions">
-<button id="brew" type="button">炼制护脉丹</button>
-<button id="pill" type="button">服下护脉丹</button>
-</div>
-<p class="small">炼丹需灵草五株、灵石两枚，成功率八成。丹药提升下一次突破成功率，不可叠加。</p>
-</section>
-<section class="panel" id="panel-fate" role="tabpanel" aria-labelledby="tab-fate" tabindex="0" hidden>
-<h2 id="gate-title">命关</h2>
-<p id="gate">—</p>
-<p class="warn" id="danger">—</p>
-<div class="actions">
-<button id="break" class="primary" type="button">尝试突破</button>
-<button id="rebirth" class="primary" type="button" hidden>转世重修</button>
-</div>
-</section>
-<section class="panel" id="panel-legacy" role="tabpanel" aria-labelledby="tab-legacy" tabindex="0" hidden>
-<h2 id="legacy-title">轮回簿</h2>
-<p id="legacy">—</p>
-<p class="small">每次死亡会留下道痕，略微提升后世的修炼与突破能力。死亡后不保留修为和资源。飞升是一世的胜利，也可以再入红尘。</p>
-</section>
-<section class="panel" id="panel-journal" role="tabpanel" aria-labelledby="tab-journal" tabindex="0" hidden>
-<h2 id="journal-title">修行纪事</h2>
-<ol id="journal"></ol>
-</section>
-</div>
-<footer><span>本地自动存档 · 离线继续修炼 · 命关需手动决定</span><a href="./game.html">像素工坊</a></footer>
+<footer><span>本地自动存档 · 生死突破需亲自决定 · 纪事完整保留</span><a href="./game.html">像素工坊</a></footer>
 </main>
 <script>
 (() => {
@@ -150,9 +181,18 @@ const ROOTS=[
 {name:"天灵根",speed:1.8,luck:.09}
 ];
 const REALMS=["凡人","炼气一层","炼气二层","炼气三层","炼气四层","炼气五层",
-"炼气六层","炼气七层","炼气八层","炼气九层","筑基","金丹","元婴","化神","渡劫","飞升"];
-const LIMITS=[75,100,100,100,100,100,100,100,100,100,160,240,360,540,750,Infinity];
-const COSTS=[45,65,91,125,170,225,290,370,465,600,900,2700,5700,11000,22000,0];
+"炼气六层","炼气七层","炼气八层","炼气九层",
+...["筑基","金丹","元婴","化神","炼虚","合体","大乘"].flatMap(name=>
+["初期","中期","后期"].map(phase=>name+phase)),
+"渡劫","飞升"];
+const LIMITS=[75,...Array(9).fill(100),
+...[[160],[240],[360],[540],[750],[1100],[1600]].flatMap(([max])=>Array(3).fill(max)),
+2100,Infinity];
+const COSTS=[45,65,91,125,170,225,290,370,465,600,
+900,1250,1700,2700,3300,4000,5700,6800,8000,11000,13000,15000,
+20000,23000,27000,34000,39000,45000,57000,67000,77000,94000,0];
+const MAJOR_GATES=new Set([9,12,15,18,21,24,27,30,31]);
+const OLD_REALM_MAP=[0,1,2,3,4,5,6,7,8,9,10,13,16,19,31,32];
 const $=id=>document.getElementById(id);
 let game;
 function rootRoll(){
@@ -161,7 +201,7 @@ return p<.43?0:p<.73?1:p<.93?2:3;
 }
 function newLife(previous){
 return {
-version:1,generation:previous?previous.generation+1:1,
+version:2,generation:previous?previous.generation+1:1,
 marks:previous?previous.marks:0,lives:previous?previous.lives:0,
 ascensions:previous?previous.ascensions:0,
 history:previous?previous.history.slice(0,8):[],
@@ -174,30 +214,36 @@ updated:Date.now()
 function load(){
 try{
 const x=JSON.parse(localStorage.getItem(SAVE_KEY));
-if(!x||x.version!==1||!Array.isArray(x.history)||!Array.isArray(x.journal)||
+if(!x||![1,2].includes(x.version)||!Array.isArray(x.history)||!Array.isArray(x.journal)||
 !Number.isInteger(x.generation)||x.generation<1||
 !Number.isInteger(x.root)||x.root<0||x.root>=ROOTS.length||
-!Number.isInteger(x.realm)||x.realm<0||x.realm>=REALMS.length||
+!Number.isInteger(x.realm)||x.realm<0||
+x.realm>=(x.version===1?OLD_REALM_MAP.length:REALMS.length)||
 !["age","qi","herbs","stones","pills","marks","lives","ascensions","updated"].every(k=>Number.isFinite(x[k])&&x[k]>=0)||
 !["cultivate","gather"].includes(x.mode)||
 typeof x.buff!=="boolean"||typeof x.dead!=="boolean"||typeof x.ascended!=="boolean"||
 typeof x.cause!=="string")return null;
-x.journal=x.journal.filter(z=>typeof z==="string").slice(0,12);
+x.journal=x.journal.filter(z=>typeof z==="string");
 x.history=x.history.filter(z=>typeof z==="string").slice(0,8);
+if(x.version===1){
+  x.realm=OLD_REALM_MAP[x.realm]; // Preserve achieved major realm and all available life notes.
+  x.version=2;
+}
 return x;
 }catch{return null;}
 }
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game));}catch{}}
 function note(message){
 game.journal.unshift(Math.floor(game.age/YEAR)+"岁 · "+message);
-game.journal.length=Math.min(game.journal.length,12);
 }
 function limit(){return LIMITS[game.realm];}
 function cost(){return COSTS[game.realm];}
 function pace(){return (5+game.realm*2.8)*ROOTS[game.root].speed*(1+Math.min(game.marks,80)*.04);}
 function probability(){
 const level=game.realm;
-const base=level===0?.98:level>=9?Math.max(.34,.73-(level-9)*.052):.90-level*.011;
+const gate=MAJOR_GATES.has(level);
+const rank=[9,12,15,18,21,24,27,30,31].indexOf(level);
+const base=level===0?.98:gate?Math.max(.36,.69-rank*.039):level<9?.91-level*.012:.90;
 const old=game.age/YEAR>limit()*.85?.08:0;
 return Math.max(.1,Math.min(.99,base+ROOTS[game.root].luck+
 Math.min(game.marks,25)*.012+(game.buff?.19:0)-old));
@@ -206,14 +252,14 @@ function value(n){return Math.floor(n).toLocaleString("zh-CN");}
 function die(reason){
 if(game.dead||game.ascended)return;
 game.dead=true;game.cause=reason;game.lives++;
-const extra=1+Math.floor(game.realm/3);
+const extra=1+Math.floor(game.realm/6);
 game.marks+=extra;
 game.history.unshift("第"+game.generation+"世 · "+value(game.age/YEAR)+"岁 · "+REALMS[game.realm]+" · "+reason+" · 道痕+"+extra);
 game.history.length=Math.min(game.history.length,8);
 note("道途断绝："+reason+"。此世修为与资源尽散。");
 }
 function fly(){
-game.ascended=true;game.realm=15;game.cause="飞升";
+game.ascended=true;game.realm=REALMS.length-1;game.cause="飞升";
 game.ascensions++;game.lives++;game.marks+=10;
 game.history.unshift("第"+game.generation+"世 · "+value(game.age/YEAR)+"岁 · 飞升 · 道痕+10");
 game.history.length=Math.min(game.history.length,8);
@@ -237,7 +283,7 @@ if(game.age>=limit()*YEAR)die("采药遇险，重伤坐化");
 game.qi=Math.min(game.qi,cost());
 }
 function advance(seconds){for(let i=0;i<seconds&&!game.dead&&!game.ascended;i++)day();}
-function redrawSave(){game.updated=Date.now();persist();render();if(game.dead||game.ascended)selectPanel("fate");}
+function redrawSave(){game.updated=Date.now();persist();render();}
 function choose(mode){
 if(game.dead||game.ascended)return;
 if(game.mode!==mode){game.mode=mode;note(mode==="cultivate"?"归洞府闭关吐纳。":"入深山采药探灵矿。");}
@@ -266,11 +312,12 @@ if(game.qi<cost()){note("修为未满，尚不能破境。");redrawSave();return
 const level=game.realm,odds=probability();
 game.buff=false;game.qi=0;
 if(Math.random()<odds){
-if(level===14)fly();
+if(level===REALMS.length-2)fly();
 else{game.realm++;note("冲关成功，已入"+REALMS[game.realm]+"。寿元界限随境界变化。");}
 }else{
-const deathRisk=level<9?0:Math.min(1,.14+(level-9)*.14);
-if(Math.random()<deathRisk)die(level===14?"飞升天劫之下，身死道消":"冲击"+REALMS[level+1]+"失败，经脉尽毁");
+const gateRank=[9,12,15,18,21,24,27,30,31].indexOf(level);
+const deathRisk=gateRank<0?0:Math.min(.95,.12+gateRank*.09);
+if(Math.random()<deathRisk)die(level===REALMS.length-2?"飞升天劫之下，身死道消":"冲击"+REALMS[level+1]+"失败，经脉尽毁");
 else{
 game.age+=(level<9?26:180)+Math.floor(Math.random()*120);
 note("冲关失败，修为尽散，经脉受损，折损寿元。");
@@ -284,7 +331,7 @@ if(!game.dead&&!game.ascended)return;
 const last=game;
 game=newLife(last);
 note("轮回重生。前世道痕"+last.marks+"道，随神魂传承。");
-redrawSave();selectPanel("practice");
+redrawSave();
 }
 function render(){
 const over=game.dead||game.ascended;
@@ -318,43 +365,28 @@ $("rebirth").textContent="转世重修";
 }else{
 $("gate").textContent="下一命关："+REALMS[game.realm+1]+"；需要 "+value(cost())+
 " 修为；当前成功率 "+(probability()*100).toFixed(1)+"%。";
-$("danger").textContent=game.realm<9?
-"小境界失败损失修为与寿元；不会自动突破。":
-"大境界及天劫失败可能直接身死。服丹可以增加成功机会，却不能保证成功。";
+$("danger").textContent=MAJOR_GATES.has(game.realm)?
+"大境界命关，失败可能身死。护脉丹可增胜算，却不能保证成功。":
+"小境界冲关失败会损失修为和寿元。";
 }
 $("legacy").textContent="道痕 "+value(game.marks)+" · 完整人生 "+value(game.lives)+" 世 · 飞升 "+
 value(game.ascensions)+" 次。"+(game.history.length?"前世："+game.history[0]:"尚无前世记录。");
-const list=$("journal");list.replaceChildren();
-for(const msg of game.journal){const li=document.createElement("li");li.textContent=msg;list.appendChild(li);}
+const list=$("journal");
+const lastRendered=renderedJournal;
+if(lastRendered!==game.journal.length||renderedFirst!==game.journal[0]||renderedGeneration!==game.generation){
+  const savedScroll=list.scrollTop, wasAtTop=savedScroll<=4, previousHeight=list.scrollHeight;
+  const fragment=document.createDocumentFragment();
+  for(const msg of game.journal){const li=document.createElement("li");li.textContent=msg;fragment.appendChild(li);}
+  list.replaceChildren(fragment);
+  if(wasAtTop)list.scrollTop=0;
+  else list.scrollTop=savedScroll+Math.max(0,list.scrollHeight-previousHeight);
+  renderedJournal=game.journal.length; renderedFirst=game.journal[0]; renderedGeneration=game.generation;
+}
+$("journal-count").textContent="本世 "+value(game.journal.length)+" 条 · 全部保留";
 document.documentElement.dataset.ready="true";
 }
 
-let activePanel = "practice";
-const tabButtons = [...document.querySelectorAll(".tabs [role=tab]")];
-function selectPanel(name, focus=false) {
-  activePanel = name;
-  for (const button of tabButtons) {
-    const selected = button.dataset.panel === name;
-    button.setAttribute("aria-selected", String(selected));
-    button.tabIndex = selected ? 0 : -1;
-    const pane = $("panel-" + button.dataset.panel);
-    pane.hidden = !selected;
-    if (selected) pane.scrollTop = 0;
-    if (selected && focus) button.focus();
-  }
-}
-for (let i = 0; i < tabButtons.length; i++) {
-  const tab = tabButtons[i];
-  tab.addEventListener("click", () => selectPanel(tab.dataset.panel));
-  tab.addEventListener("keydown", event => {
-    if (!["ArrowRight","ArrowLeft","Home","End"].includes(event.key)) return;
-    event.preventDefault();
-    const next = event.key === "Home" ? 0 : event.key === "End" ? tabButtons.length - 1 :
-      (i + (event.key === "ArrowRight" ? 1 : -1) + tabButtons.length) % tabButtons.length;
-    selectPanel(tabButtons[next].dataset.panel, true);
-  });
-}
-
+let renderedJournal=-1,renderedFirst=null,renderedGeneration=null;
 $("cultivate").addEventListener("click",()=>choose("cultivate"));
 $("gather").addEventListener("click",()=>choose("gather"));
 $("brew").addEventListener("click",brew);
@@ -373,13 +405,10 @@ $("offline").hidden=false;
 note("离线修行已结算；突破须由你亲自决定。");
 }
 redrawSave();
-selectPanel(game.dead||game.ascended?"fate":"practice");
 setInterval(()=>{
 const now=Date.now(),elapsed=Math.min(MAX_OFFLINE,Math.max(0,Math.floor((now-game.updated)/1000)));
 if(!elapsed)return;
-const wasFinished=game.dead||game.ascended;
 advance(elapsed);game.updated=now;persist();render();
-if(!wasFinished&&(game.dead||game.ascended))selectPanel("fate");
 },1000);
 })();
 </script>
