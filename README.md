@@ -18,6 +18,10 @@ CI / networked execution / cache / artifacts
 
 The ChatGPT sandbox is treated as disposable. GitHub is the source of truth.
 
+## Text-only idle cultivation
+
+[山中问道 / Text Cultivation](https://present030.github.io/hello-github/cultivation.html) is a text-only browser idle game. Choose to cultivate or gather, brew and consume protective pills, decide when to attempt realm breakthroughs and face fatal tribulations. Death is permanent for that lifetime, but reincarnation preserves limited Dao marks; each new life starts again with fresh aptitude and resources. Real-time and capped offline progression use local browser storage only. No art, animations, backend, login or runtime dependencies. This is a playable first version; its balance may be adjusted after actual play.
+
 ## Play in the browser
 
 [Pixel Alchemy / 像素炼金工坊](https://present030.github.io/hello-github/game.html) is a self-contained, offline-capable Canvas sandbox linked from the Pages home page. Paint sand, water, rock, seeds, wood, fire, lava and ice, then discover their reactions. Mouse, touch, and basic keyboard controls are supported. The game has a unified pixel-art palette and needs no account or runtime dependencies.

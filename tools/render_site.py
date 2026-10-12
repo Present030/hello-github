@@ -45,6 +45,10 @@ def main() -> int:
     if game_source.is_file():
         shutil.copyfile(game_source, args.output.with_name("game.html"))
 
+    cultivation_source = args.template.with_name("cultivation.html")
+    if cultivation_source.is_file():
+        shutil.copyfile(cultivation_source, args.output.with_name("cultivation.html"))
+
     print(f"Rendered {args.output} for v{version}")
     return 0
 

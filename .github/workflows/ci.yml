@@ -116,6 +116,8 @@ jobs:
         run: python tools/check_site_compatibility.py --site dist/site/index.html
       - name: Exercise Pixel Alchemy in real Chrome
         run: python tools/check_game_browser.py --site dist/site/game.html
+      - name: Exercise text cultivation in real Chrome
+        run: python tools/check_cultivation_browser.py --site dist/site/cultivation.html
 
   site-portability:
     name: site portability (${{ matrix.os }})
