@@ -12,6 +12,7 @@ def make_site(root: Path):
     root.mkdir(exist_ok=True)
     (root / "index.html").write_text("<!doctype html><html>hello</html>", encoding="utf-8")
     (root / "status.json").write_text('{"status": "unknown"}', encoding="utf-8")
+    (root / "game.html").write_text("<!doctype html><html>game</html>", encoding="utf-8")
 
 
 class PublicationExposureTests(unittest.TestCase):
@@ -40,6 +41,15 @@ class PublicationExposureTests(unittest.TestCase):
             (root / "status.json").write_bytes(b"\x00invalid")
             self.assertTrue(any(x.rule == "unscannable-public-asset"
                                 for x in audit_public_directory(root)))
+
+    def test_missing_game_asset_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "site"
+            make_site(root)
+            (root / "game.html").unlink()
+            findings = audit_public_directory(root)
+            self.assertTrue(any(x.rule == "missing-public-asset" and
+                                x.location == "public:game.html" for x in findings))
 
     def test_real_token_format_blocks_without_echo(self):
         with tempfile.TemporaryDirectory() as tmp:

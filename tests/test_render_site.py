@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from tools.render_site import read_version, render
+from tools.render_site import main, read_version, render
 
 
 class RenderSiteTests(unittest.TestCase):
@@ -20,6 +21,24 @@ class RenderSiteTests(unittest.TestCase):
     def test_render_requires_version_token(self) -> None:
         with self.assertRaisesRegex(ValueError, "missing"):
             render("no token here", "1.2.3")
+
+    def test_renderer_copies_self_contained_game(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            template = source / "index.html"
+            template.write_text("v{{VERSION}}", encoding="utf-8")
+            (source / "game.html").write_text("<html>pixel game</html>", encoding="utf-8")
+            version = root / "VERSION"
+            version.write_text("0.3.0\n", encoding="utf-8")
+            output = root / "published" / "index.html"
+            with patch("sys.argv", ["render_site.py", "--template", str(template),
+                                     "--version-file", str(version), "--output", str(output)]):
+                self.assertEqual(main(), 0)
+            self.assertEqual(output.read_text(encoding="utf-8"), "v0.3.0")
+            self.assertEqual(output.with_name("game.html").read_text(encoding="utf-8"),
+                             "<html>pixel game</html>")
 
     def test_read_version_accepts_semver_triplet(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
