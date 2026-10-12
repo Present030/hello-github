@@ -226,7 +226,14 @@ typeof x.cause!=="string")return null;
 x.journal=x.journal.filter(z=>typeof z==="string");
 x.history=x.history.filter(z=>typeof z==="string").slice(0,8);
 if(x.version===1){
-  x.realm=OLD_REALM_MAP[x.realm]; // Preserve achieved major realm and all available life notes.
+  // Match the former stage by meaning, not by its numeric index.
+  // Preserve the existing breakthrough progress proportionally.
+  const oldCosts=[45,65,91,125,170,225,290,370,465,600,900,2700,5700,11000,22000,0];
+  const oldIndex=x.realm;
+  x.realm=OLD_REALM_MAP[oldIndex];
+  if(oldCosts[oldIndex]>0){
+    x.qi=Math.min(COSTS[x.realm],(x.qi/oldCosts[oldIndex])*COSTS[x.realm]);
+  }
   x.version=2;
 }
 return x;
@@ -313,7 +320,8 @@ const level=game.realm,odds=probability();
 game.buff=false;game.qi=0;
 if(Math.random()<odds){
 if(level===REALMS.length-2)fly();
-else{game.realm++;note("冲关成功，已入"+REALMS[game.realm]+"。寿元界限随境界变化。");}
+else{game.realm++;note("冲关成功，已入"+REALMS[game.realm]+
+(level===0||MAJOR_GATES.has(level)?"。寿元上限得以提升。":"。"));}
 }else{
 const gateRank=[9,12,15,18,21,24,27,30,31].indexOf(level);
 const deathRisk=gateRank<0?0:Math.min(.95,.12+gateRank*.09);
