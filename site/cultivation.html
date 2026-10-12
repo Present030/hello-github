@@ -7,32 +7,82 @@
 <meta name="description" content="山中问道：纯文字放置修仙，闭关、采药、炼丹、突破、渡劫与轮回。">
 <title>山中问道 · 文字放置修仙</title>
 <style>
+
 :root{color-scheme:light;background:#f3f0e8;color:#28332e;font-family:"Songti SC","Noto Serif CJK SC",SimSun,serif}
-*{box-sizing:border-box}body{margin:0}.page{max-width:750px;width:calc(100% - 32px);margin:auto;padding:28px 0 60px}
-header{border-bottom:2px solid #455c50;padding-bottom:20px}h1{font-size:clamp(2.2rem,7vw,3.2rem);font-weight:500;letter-spacing:.16em;margin:12px 0}
-h2{font-size:1.18rem;letter-spacing:.08em}a{color:#356359}p{line-height:1.8}
-.small,dt,footer{color:#66746e;font-size:.87rem}section{border-bottom:1px solid #b6bfb4;padding:18px 0 22px}
-dl{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin:0}dt{margin-bottom:6px}dd{font-size:1.1rem;margin:0}.full{grid-column:1/-1}
-.actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
-button{font:inherit;color:#233d34;background:transparent;border:1px solid #7b8d7c;padding:10px 15px;min-height:43px;cursor:pointer}
-button:hover:not(:disabled){background:#e1e9df}button:focus-visible,a:focus-visible{outline:3px solid #8f6131;outline-offset:3px}
-button:disabled{opacity:.45;cursor:not-allowed}button.primary{background:#355c4f;color:white;border-color:#355c4f}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+.page{max-width:850px;width:calc(100% - 32px);height:100vh;height:100dvh;margin:auto;
+  padding:12px 0 8px;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:9px;overflow:hidden}
+a{color:#356359}h1{font-size:clamp(1.5rem,4vw,2rem);font-weight:500;letter-spacing:.13em;margin:0}
+h2{font-size:1.08rem;letter-spacing:.07em;margin:0 0 12px}
+p{line-height:1.6;margin:8px 0}
+.small,dt,footer{color:#66746e;font-size:.82rem}
+header{border-bottom:2px solid #455c50;padding-bottom:6px;min-width:0}
+.head-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tagline{margin:2px 0 0;font-size:.79rem;color:#68756e}
+.status-panel{border:1px solid #b6bfb4;padding:10px 13px;min-width:0}
+.status-panel h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px 12px;margin:0}
+dl>div{min-width:0}dt{margin:0 0 2px;font-size:.73rem}dd{font-size:.96rem;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.full{grid-column:auto}
+.status-panel>.small{display:none}
+.notice{border-left:3px solid #627e6f;background:#e7e6dc;padding:6px 10px;margin:7px 0 0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.77rem}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-width:0}
+button{font:inherit;color:#233d34;background:transparent;border:1px solid #7b8d7c;padding:8px 12px;
+  min-height:39px;cursor:pointer}
+button:hover:not(:disabled){background:#e1e9df}
+button:focus-visible,a:focus-visible,.panel:focus-visible{outline:3px solid #8f6131;outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:#355c4f;color:white;border-color:#355c4f}
 button[aria-pressed="true"]{background:#d2dfd2;border-color:#355c4f;font-weight:700}
-.notice{border-left:3px solid #627e6f;background:#e7e6dc;padding:12px;margin:12px 0}
+.tabs button{font-size:.93rem;background:#e9e8e0;min-width:0}
+.tabs button[aria-selected="true"]{background:#355c4f;color:#fff;border-color:#355c4f;font-weight:700}
+.panels{border:1px solid #b6bfb4;min-width:0;min-height:0;overflow:hidden}
+.panel{height:100%;overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:13px 17px;
+  scrollbar-width:none}
+.panel::-webkit-scrollbar{display:none}
+.panel[hidden]{display:none}
+.panel .small{font-size:.81rem}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
 .warn{color:#795138;border-left:3px solid #ad7d59;padding-left:13px}
-[hidden]{display:none!important}ol{list-style:none;padding:0;margin:0}li{border-bottom:1px dashed #bec5b9;padding:11px 0;line-height:1.7}
-li:last-child{border:0}footer{line-height:1.7;padding-top:22px}
-@media(max-width:450px){.page{width:calc(100% - 24px)}.actions button{flex-grow:1}}
+[hidden]{display:none!important}
+ol{list-style:none;padding:0;margin:0}
+li{border-bottom:1px dashed #bec5b9;padding:10px 0;line-height:1.6}
+li:last-child{border:0}
+footer{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:21px;
+  overflow:hidden;white-space:nowrap;font-size:.73rem}
+footer span{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:480px){
+  .page{width:calc(100% - 22px);padding:8px 0 5px;gap:6px}
+  .head-row{gap:7px}h1{font-size:1.65rem}
+  .tagline{display:none}
+  .status-panel{padding:8px 10px}
+  dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
+  dt{font-size:.71rem}dd{font-size:.92rem}
+  .panel{padding:12px}
+  .actions button{flex-grow:1}
+  .tabs button{font-size:.85rem;padding:6px;min-height:39px}
+}
+@media(max-height:630px) {
+  .page{gap:5px;padding-top:5px}
+  h1{font-size:1.55rem}
+  .tagline{display:none}
+  .status-panel{padding:6px 10px}
+  dl{gap:4px 10px}
+  dt{font-size:.68rem}dd{font-size:.86rem}
+  .panel{padding:8px 12px}
+  footer{font-size:.69rem}
+}
 </style>
 </head>
 <body>
 <main class="page">
 <header>
-<p class="small"><a href="./index.html">返回实验室</a> / 纯文字修仙 · 初版</p>
-<h1>山中问道</h1>
-<p class="small">人之一世，不过须臾。问道有生死，长生无坦途。</p>
+  <div class="head-row"><h1>山中问道</h1><a href="./index.html" class="small">← 实验室</a></div>
+  <p class="tagline">人之一世，不过须臾。问道有生死，长生无坦途。</p>
 </header>
-<section aria-labelledby="status-title">
+<section class="status-panel" aria-labelledby="status-title">
 <h2 id="status-title">此生</h2>
 <dl>
 <div><dt>世次</dt><dd id="generation">—</dd></div>
@@ -47,7 +97,14 @@ li:last-child{border:0}footer{line-height:1.7;padding-top:22px}
 <p id="offline" class="notice" role="status" hidden></p>
 <p class="small">现实每秒约流逝修仙界一日；离线最多结算四小时。寿元会随时间流逝。</p>
 </section>
-<section aria-labelledby="actions-title">
+<nav class="tabs" role="tablist" aria-label="修仙页面">
+<button type="button" role="tab" id="tab-practice" data-panel="practice" aria-controls="panel-practice" aria-selected="true" tabindex="0">修炼</button>
+<button type="button" role="tab" id="tab-fate" data-panel="fate" aria-controls="panel-fate" aria-selected="false" tabindex="-1">突破</button>
+<button type="button" role="tab" id="tab-legacy" data-panel="legacy" aria-controls="panel-legacy" aria-selected="false" tabindex="-1">轮回</button>
+<button type="button" role="tab" id="tab-journal" data-panel="journal" aria-controls="panel-journal" aria-selected="false" tabindex="-1">纪事</button>
+</nav>
+<div class="panels">
+<section class="panel" id="panel-practice" role="tabpanel" aria-labelledby="tab-practice" tabindex="0">
 <h2 id="actions-title">日常修行</h2>
 <p>选择一项行动，角色就会持续进行。重要突破需要你亲自决定。</p>
 <div class="actions" role="group" aria-label="当前放置行动">
@@ -61,7 +118,7 @@ li:last-child{border:0}footer{line-height:1.7;padding-top:22px}
 </div>
 <p class="small">炼丹需灵草五株、灵石两枚，成功率八成。丹药提升下一次突破成功率，不可叠加。</p>
 </section>
-<section aria-labelledby="gate-title">
+<section class="panel" id="panel-fate" role="tabpanel" aria-labelledby="tab-fate" tabindex="0" hidden>
 <h2 id="gate-title">命关</h2>
 <p id="gate">—</p>
 <p class="warn" id="danger">—</p>
@@ -70,20 +127,17 @@ li:last-child{border:0}footer{line-height:1.7;padding-top:22px}
 <button id="rebirth" class="primary" type="button" hidden>转世重修</button>
 </div>
 </section>
-<section aria-labelledby="legacy-title">
+<section class="panel" id="panel-legacy" role="tabpanel" aria-labelledby="tab-legacy" tabindex="0" hidden>
 <h2 id="legacy-title">轮回簿</h2>
 <p id="legacy">—</p>
 <p class="small">每次死亡会留下道痕，略微提升后世的修炼与突破能力。死亡后不保留修为和资源。飞升是一世的胜利，也可以再入红尘。</p>
 </section>
-<section aria-labelledby="journal-title">
+<section class="panel" id="panel-journal" role="tabpanel" aria-labelledby="tab-journal" tabindex="0" hidden>
 <h2 id="journal-title">修行纪事</h2>
 <ol id="journal"></ol>
 </section>
-<footer>
-<p>文字与数字构成全部玩法，没有图片、角色立绘或战斗动画。存档仅保存在本地浏览器，清理网站数据将失去进度。</p>
-<p>失败可能导致寿元损失或身死。离线时不会自动突破，也不会自动转世。</p>
-<p><a href="./game.html">回看另一个实验：像素炼金工坊</a></p>
-</footer>
+</div>
+<footer><span>本地自动存档 · 离线继续修炼 · 命关需手动决定</span><a href="./game.html">像素工坊</a></footer>
 </main>
 <script>
 (() => {
@@ -183,7 +237,7 @@ if(game.age>=limit()*YEAR)die("采药遇险，重伤坐化");
 game.qi=Math.min(game.qi,cost());
 }
 function advance(seconds){for(let i=0;i<seconds&&!game.dead&&!game.ascended;i++)day();}
-function redrawSave(){game.updated=Date.now();persist();render();}
+function redrawSave(){game.updated=Date.now();persist();render();if(game.dead||game.ascended)selectPanel("fate");}
 function choose(mode){
 if(game.dead||game.ascended)return;
 if(game.mode!==mode){game.mode=mode;note(mode==="cultivate"?"归洞府闭关吐纳。":"入深山采药探灵矿。");}
@@ -230,7 +284,7 @@ if(!game.dead&&!game.ascended)return;
 const last=game;
 game=newLife(last);
 note("轮回重生。前世道痕"+last.marks+"道，随神魂传承。");
-redrawSave();
+redrawSave();selectPanel("practice");
 }
 function render(){
 const over=game.dead||game.ascended;
@@ -274,6 +328,33 @@ const list=$("journal");list.replaceChildren();
 for(const msg of game.journal){const li=document.createElement("li");li.textContent=msg;list.appendChild(li);}
 document.documentElement.dataset.ready="true";
 }
+
+let activePanel = "practice";
+const tabButtons = [...document.querySelectorAll(".tabs [role=tab]")];
+function selectPanel(name, focus=false) {
+  activePanel = name;
+  for (const button of tabButtons) {
+    const selected = button.dataset.panel === name;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    const pane = $("panel-" + button.dataset.panel);
+    pane.hidden = !selected;
+    if (selected) pane.scrollTop = 0;
+    if (selected && focus) button.focus();
+  }
+}
+for (let i = 0; i < tabButtons.length; i++) {
+  const tab = tabButtons[i];
+  tab.addEventListener("click", () => selectPanel(tab.dataset.panel));
+  tab.addEventListener("keydown", event => {
+    if (!["ArrowRight","ArrowLeft","Home","End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabButtons.length - 1 :
+      (i + (event.key === "ArrowRight" ? 1 : -1) + tabButtons.length) % tabButtons.length;
+    selectPanel(tabButtons[next].dataset.panel, true);
+  });
+}
+
 $("cultivate").addEventListener("click",()=>choose("cultivate"));
 $("gather").addEventListener("click",()=>choose("gather"));
 $("brew").addEventListener("click",brew);
@@ -292,10 +373,13 @@ $("offline").hidden=false;
 note("离线修行已结算；突破须由你亲自决定。");
 }
 redrawSave();
+selectPanel(game.dead||game.ascended?"fate":"practice");
 setInterval(()=>{
 const now=Date.now(),elapsed=Math.min(MAX_OFFLINE,Math.max(0,Math.floor((now-game.updated)/1000)));
 if(!elapsed)return;
+const wasFinished=game.dead||game.ascended;
 advance(elapsed);game.updated=now;persist();render();
+if(!wasFinished&&(game.dead||game.ascended))selectPanel("fate");
 },1000);
 })();
 </script>

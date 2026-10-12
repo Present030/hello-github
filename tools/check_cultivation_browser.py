@@ -31,6 +31,48 @@ def test(browser: Browser, url: str) -> None:
     assert ready["graphics"] == 0 and not ready["overflow"], ready
     assert ready["realm"] == "凡人", ready
 
+    # One-screen layout: page itself must not scroll at phone sizes;
+    # only a tab panel may scroll internally when text becomes long.
+    def layout(expected_width: int, expected_height: int) -> None:
+        browser.api("POST", f"/session/{browser.session}/goog/cdp/execute", {
+            "cmd": "Emulation.setDeviceMetricsOverride",
+            "params": {"width": expected_width, "height": expected_height,
+                       "deviceScaleFactor": 1, "mobile": True},
+        })
+        state = browser.js("""
+            const active = document.querySelector('.tabs [aria-selected="true"]');
+            return {
+                width: innerWidth, height: innerHeight,
+                rootHeight: document.documentElement.scrollHeight,
+                bodyHeight: document.body.scrollHeight,
+                rootWidth: document.documentElement.scrollWidth,
+                active: active?.dataset.panel,
+                tabs: document.querySelectorAll('[role="tab"]').length,
+                visiblePanels: [...document.querySelectorAll('[role="tabpanel"]')]
+                  .filter(panel => !panel.hidden).length,
+            };
+        """)
+        assert state["width"] == expected_width and state["height"] == expected_height, state
+        assert state["rootHeight"] <= state["height"] + 2, state
+        assert state["bodyHeight"] <= state["height"] + 2, state
+        assert state["rootWidth"] <= state["width"] + 2, state
+        assert state["tabs"] == 4 and state["visiblePanels"] == 1, state
+
+    for width, height in [(320, 568), (375, 667), (768, 700), (1280, 800)]:
+        layout(width, height)
+
+    browser.js('document.getElementById("tab-journal").click();')
+    panel_state = browser.js("""
+        return {
+            selected: document.getElementById("tab-journal").getAttribute("aria-selected"),
+            shown: !document.getElementById("panel-journal").hidden,
+            practiceHidden: document.getElementById("panel-practice").hidden
+        };
+    """)
+    assert panel_state == {"selected": "true", "shown": True, "practiceHidden": True}, panel_state
+    browser.js('document.getElementById("tab-practice").click();')
+    assert browser.js('return !document.getElementById("panel-practice").hidden;')
+
     browser.js('document.getElementById("gather").click();')
     mode = browser.js("""
         return JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1")).mode;
@@ -85,6 +127,7 @@ def test(browser: Browser, url: str) -> None:
           rebirth:!document.getElementById("rebirth").hidden};
     """)
     assert death["dead"] and death["rebirth"] and death["generation"] == 1, death
+    assert browser.js('return !document.getElementById("panel-fate").hidden;'), "Fatal outcome must open breakthrough tab"
     browser.js('document.getElementById("rebirth").click();')
     reborn = browser.js("""
         const x = JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
@@ -93,6 +136,7 @@ def test(browser: Browser, url: str) -> None:
     """)
     assert not reborn["dead"] and reborn["generation"] == 2, reborn
     assert reborn["marks"] >= 1 and reborn["realm"] == 0 and reborn["qi"] == 0, reborn
+    assert browser.js('return !document.getElementById("panel-practice").hidden;'), "Rebirth should return to practice tab"
 
     # A deliberate high-realm breakthrough can be fatal.
     browser.js("""
@@ -111,8 +155,9 @@ def test(browser: Browser, url: str) -> None:
         return {dead:x.dead, cause:x.cause, rebirth:!document.getElementById("rebirth").hidden};
     """)
     assert outcome["dead"] and outcome["rebirth"] and "天劫" in outcome["cause"], outcome
+    assert browser.js('return !document.getElementById("panel-fate").hidden;')
 
-    print("PASS: text-only cultivation Chrome 375px, idle/offline, pills, lifespan death, reincarnation, fatal tribulation")
+    print("PASS: text cultivation no page scrollbar 320/375/768/1280, tabs, offline, pills, death, reincarnation, tribulation")
 
 
 def main() -> int:
