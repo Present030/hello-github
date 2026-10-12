@@ -13,6 +13,7 @@ def make_site(root: Path):
     (root / "index.html").write_text("<!doctype html><html>hello</html>", encoding="utf-8")
     (root / "status.json").write_text('{"status": "unknown"}', encoding="utf-8")
     (root / "game.html").write_text("<!doctype html><html>game</html>", encoding="utf-8")
+    (root / "cultivation.html").write_text("<!doctype html><html>cultivation</html>", encoding="utf-8")
 
 
 class PublicationExposureTests(unittest.TestCase):
@@ -50,6 +51,15 @@ class PublicationExposureTests(unittest.TestCase):
             findings = audit_public_directory(root)
             self.assertTrue(any(x.rule == "missing-public-asset" and
                                 x.location == "public:game.html" for x in findings))
+
+    def test_missing_text_cultivation_asset_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "site"
+            make_site(root)
+            (root / "cultivation.html").unlink()
+            findings = audit_public_directory(root)
+            self.assertTrue(any(x.rule == "missing-public-asset" and
+                                x.location == "public:cultivation.html" for x in findings))
 
     def test_real_token_format_blocks_without_echo(self):
         with tempfile.TemporaryDirectory() as tmp:
