@@ -234,6 +234,7 @@ x.realm>=(x.version===1?OLD_REALM_MAP.length:REALMS.length)||
 !["cultivate","gather","burn"].includes(x.mode)||
 typeof x.buff!=="boolean"||typeof x.dead!=="boolean"||typeof x.ascended!=="boolean"||
 typeof x.cause!=="string")return null;
+const legacyClock=x.version!==3;
 x.journal=x.journal.filter(z=>typeof z==="string");
 x.history=x.history.filter(z=>typeof z==="string").slice(0,8);
 if(x.version===1){
@@ -248,6 +249,7 @@ if(x.version===1){
   x.version=2;
 }
 if(x.version===2) x.version=3;
+if(legacyClock) x.updated=Date.now(); // Avoid retroactive accelerated aging on first v3 load.
 return x;
 }catch{return null;}
 }
@@ -325,7 +327,7 @@ if(game.age>=limit()*YEAR){
   return;
 }
 const before=Math.floor(priorAge/YEAR),after=Math.floor(game.age/YEAR);
-if(before<Math.floor(limit()-.0-15)&&after>=Math.floor(limit()-15)){
+if(before<limit()-15&&after>=limit()-15){
   note("寿数将尽，只余十五载。是求稳积累，还是冒险一搏？");
 }
 if(before<Math.floor(limit()-5)&&after>=Math.floor(limit()-5)){
