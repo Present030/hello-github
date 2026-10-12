@@ -85,6 +85,10 @@ footer span{overflow:hidden;text-overflow:ellipsis}
   .journal-head{padding:6px 10px}
   .journal-list li{padding:7px 0;font-size:.82rem}
 }
+@media(max-width:690px){
+  .controls #insight{display:none}
+  .controls .control-section>.small{display:none}
+}
 @media(max-width:480px){
   .page{width:calc(100% - 18px);padding:5px 0 4px;gap:5px}
   h1{font-size:1.5rem}.tagline{display:none}
@@ -99,6 +103,9 @@ footer span{overflow:hidden;text-overflow:ellipsis}
   footer{font-size:.68rem}
 }
 @media(max-height:620px) {
+  .control-section h2{display:none}
+  .controls{gap:3px}
+  .control-section{padding:4px 7px}
   .page{gap:4px}
   h1{font-size:1.42rem}
   .tagline{display:none}
@@ -130,7 +137,7 @@ footer span{overflow:hidden;text-overflow:ellipsis}
     <div><dt>修为</dt><dd id="qi">—</dd></div>
     <div><dt>灵草 / 灵石</dt><dd id="resources">—</dd></div>
     <div><dt>丹药 / 护脉</dt><dd id="pills">—</dd></div>
-    <div><dt>当前行动</dt><dd id="action">—</dd></div>
+    <div><dt>当前功法</dt><dd id="action">—</dd></div>
   </dl>
   <p id="offline" class="notice" role="status" hidden></p>
   <p class="small">现实每秒流逝约三个月；离线最多结算三分钟。</p>
@@ -418,8 +425,8 @@ $("life-clock").title="剩余寿元按当前正常修炼方式估算；燃寿、
 $("qi").textContent=game.ascended?"此世圆满":value(game.qi)+" / "+value(cost());
 $("resources").textContent=value(game.herbs)+" / "+value(game.stones);
 $("pills").textContent=value(game.pills)+" / "+(game.buff?"已生效":"无");
-$("action").textContent=over?(game.ascended?"飞升圆满":"身死道消"):
-game.mode==="cultivate"?"洞府闭关":game.mode==="burn"?"燃寿冲脉":"入山采药";
+$("action").textContent=over?(game.ascended?"飞升圆满":"身死道消"):art().name;
+$("action").title=art().effect;
 $("cultivate").setAttribute("aria-pressed",String(game.mode==="cultivate"));
 $("gather").setAttribute("aria-pressed",String(game.mode==="gather"));
 $("burn").setAttribute("aria-pressed",String(game.mode==="burn"));
