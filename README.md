@@ -18,6 +18,10 @@ CI / networked execution / cache / artifacts
 
 The ChatGPT sandbox is treated as disposable. GitHub is the source of truth.
 
+## Play in the browser
+
+[Pixel Alchemy / 像素炼金工坊](https://present030.github.io/hello-github/game.html) is a self-contained, offline-capable Canvas sandbox linked from the Pages home page. Paint sand, water, rock, seeds, wood, fire, lava and ice, then discover their reactions. Mouse, touch, and basic keyboard controls are supported. The game has a unified pixel-art palette and needs no account or runtime dependencies.
+
 ## Run from source
 
 ```bash
