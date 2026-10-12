@@ -166,7 +166,7 @@ def test(browser: Browser, url: str) -> None:
     """, KEY)
     browser.open(url)
     burned = saved(browser)
-    assert burned["qi"] >= 20 * 5, burned
+    assert burned["qi"] >= 90, burned  # v3 burn reaches this stage\u0027s 91-qi cap in 5 ticks
     assert burned["age"] >= 20 * 365 + 5 * 270, burned
 
     # End-of-life pressure: major cultivation consumes multiple whole years.
