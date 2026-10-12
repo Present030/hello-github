@@ -386,7 +386,7 @@ if(level===REALMS.length-2)fly();
 else{
   game.realm++;
   note("冲关成功，已入"+REALMS[game.realm]+"。"+
-    "吐纳修为每日 "+beforeRate.toFixed(1)+" → "+pace().toFixed(1)+
+    "每季修为 "+beforeRate.toFixed(1)+" → "+pace().toFixed(1)+
     "，寿元上限 "+LIMITS[level]+" → "+limit()+" 岁。");
   if(art().name!==formerArt){
     note("悟得"+art().name+"："+art().effect+"。");
