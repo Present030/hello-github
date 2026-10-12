@@ -18,16 +18,6 @@ CI / networked execution / cache / artifacts
 
 The ChatGPT sandbox is treated as disposable. GitHub is the source of truth.
 
-## Text-only idle cultivation
-
-[山中问道 / Text Cultivation](https://present030.github.io/hello-github/cultivation.html) is a text-only personal cultivation idle game with hard mortality, breakthrough planning, and reincarnation. Regular meditation, herb gathering, and **dangerous life-burning cultivation** offer distinct choices: life-burning improves short-term cultivation but spends substantially more lifespan and may backfire. One real second advances approximately three in-game months; offline catch-up is capped at three minutes to bound involuntary aging. Every breakthrough consumes **one year** (or several years at a major gate), may fail catastrophically, and increases cultivation power. Milestone realms additionally unlock named techniques: faster meditation, improved pill success, better gathering, safer life-burning, or higher breakthrough odds. Remaining lifetime is displayed alongside the character's age.
-
-Common actions, breakthrough choices, reincarnation and the complete current-lifetime chronicle remain visible in one screen. The realm ladder is Mortal → Qi Refining 1–9 → Foundation/Core/Nascent Soul/Spirit Transformation/Void Refining/Body Integration/Mahayana (each early/middle/late) → Tribulation → Ascension. Local saves preserve the original `hello-github-text-cultivation-v1` key; existing v1/v2 saves are migrated to schema v3 without resetting their realms, resources or surviving journal. Entries previously discarded by the original 12-entry journal cap cannot be recovered. No art, animations, backend, login or runtime dependencies; balance remains experimental.
-
-## Play in the browser
-
-[Pixel Alchemy / 像素炼金工坊](https://present030.github.io/hello-github/game.html) is a self-contained, offline-capable Canvas sandbox linked from the Pages home page. Paint sand, water, rock, seeds, wood, fire, lava and ice, then discover their reactions. Mouse, touch, and basic keyboard controls are supported. The game has a unified pixel-art palette and needs no account or runtime dependencies.
-
 ## Run from source
 
 ```bash
