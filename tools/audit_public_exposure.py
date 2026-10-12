@@ -16,7 +16,7 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 MAX_TEXT_BYTES = 2 * 1024 * 1024
 # A deliberately small publication allowlist; expanding Pages requires review.
-PUBLIC_SITE_FILES = frozenset({"index.html", "status.json", "game.html", "cultivation.html"})
+PUBLIC_SITE_FILES = frozenset({"index.html", "status.json"})
 
 SAFE_EMAIL_DOMAINS = {
     "example.com",
