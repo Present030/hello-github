@@ -30,6 +30,7 @@ class RenderSiteTests(unittest.TestCase):
             template = source / "index.html"
             template.write_text("v{{VERSION}}", encoding="utf-8")
             (source / "game.html").write_text("<html>pixel game</html>", encoding="utf-8")
+            (source / "cultivation.html").write_text("<html>text cultivation</html>", encoding="utf-8")
             version = root / "VERSION"
             version.write_text("0.3.0\n", encoding="utf-8")
             output = root / "published" / "index.html"
@@ -39,6 +40,8 @@ class RenderSiteTests(unittest.TestCase):
             self.assertEqual(output.read_text(encoding="utf-8"), "v0.3.0")
             self.assertEqual(output.with_name("game.html").read_text(encoding="utf-8"),
                              "<html>pixel game</html>")
+            self.assertEqual(output.with_name("cultivation.html").read_text(encoding="utf-8"),
+                             "<html>text cultivation</html>")
 
     def test_read_version_accepts_semver_triplet(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
