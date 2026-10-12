@@ -126,14 +126,14 @@ footer span{overflow:hidden;text-overflow:ellipsis}
     <div><dt>世次</dt><dd id="generation">—</dd></div>
     <div><dt>灵根</dt><dd id="root">—</dd></div>
     <div><dt>境界</dt><dd id="realm">—</dd></div>
-    <div><dt>寿元</dt><dd id="life">—</dd></div>
+    <div><dt id="life-clock">寿元</dt><dd id="life">—</dd></div>
     <div><dt>修为</dt><dd id="qi">—</dd></div>
     <div><dt>灵草 / 灵石</dt><dd id="resources">—</dd></div>
     <div><dt>丹药 / 护脉</dt><dd id="pills">—</dd></div>
     <div><dt>当前行动</dt><dd id="action">—</dd></div>
   </dl>
   <p id="offline" class="notice" role="status" hidden></p>
-  <p class="small">现实每秒流逝修仙界一日；离线最多结算四小时。</p>
+  <p class="small">现实每秒流逝约三个月；离线最多结算三分钟。</p>
 </section>
 <div class="dashboard">
   <div class="controls">
@@ -142,11 +142,13 @@ footer span{overflow:hidden;text-overflow:ellipsis}
       <div class="actions" role="group" aria-label="常用修行操作">
         <button id="cultivate" type="button" aria-pressed="true">闭关</button>
         <button id="gather" type="button" aria-pressed="false">采药</button>
+        <button id="burn" type="button" aria-pressed="false" title="燃寿修炼：额外消耗寿元，修炼速度暴涨，但可能遭遇反噬">燃寿</button>
         <button id="brew" type="button">炼丹</button>
         <button id="pill" type="button">服丹</button>
       </div>
       <p id="rate" class="action-text">—</p>
-      <p class="small" title="炼丹需灵草五株、灵石两枚；成功率八成。丹药只提升下一次突破，不能叠加。">炼丹：灵草 5、灵石 2；护脉丹仅强化下次突破。</p>
+      <p id="insight" class="action-text" title="突破解锁的道法效果">—</p>
+      <p class="small" title="炼丹需灵草五株、灵石两枚；成功率八成。丹药只提升下一次突破，不能叠加。">炼丹：灵草 5、灵石 2；境界越高成功率越高。</p>
     </section>
     <section class="control-section" aria-labelledby="gate-title">
       <h2 id="gate-title">命关</h2>
@@ -173,7 +175,7 @@ footer span{overflow:hidden;text-overflow:ellipsis}
 <script>
 (() => {
 "use strict";
-const SAVE_KEY="hello-github-text-cultivation-v1",YEAR=365,MAX_OFFLINE=14400;
+const SAVE_KEY="hello-github-text-cultivation-v1",YEAR=365,MAX_OFFLINE=180, DAYS_PER_TICK=90;
 const ROOTS=[
 {name:"杂灵根",speed:1,luck:0},
 {name:"三灵根",speed:1.2,luck:.025},
@@ -192,6 +194,15 @@ const COSTS=[45,65,91,125,170,225,290,370,465,600,
 900,1250,1700,2700,3300,4000,5700,6800,8000,11000,13000,15000,
 20000,23000,27000,34000,39000,45000,57000,67000,77000,94000,0];
 const MAJOR_GATES=new Set([9,12,15,18,21,24,27,30,31]);
+const ARTS=[
+ {level:0,name:"引气诀",effect:"修行初学"},
+ {level:3,name:"归元诀",effect:"吐纳收益 +30%"},
+ {level:6,name:"丹火诀",effect:"炼丹成功率 80% → 90%"},
+ {level:9,name:"聚灵诀",effect:"吐纳收益再 +25%"},
+ {level:10,name:"灵识探脉",effect:"采药、寻石更容易"},
+ {level:13,name:"金丹护元",effect:"燃寿修行额外损耗减少"},
+ {level:16,name:"元神悟道",effect:"突破胜率 +6%"}
+];
 const OLD_REALM_MAP=[0,1,2,3,4,5,6,7,8,9,10,13,16,19,31,32];
 const $=id=>document.getElementById(id);
 let game;
@@ -201,7 +212,7 @@ return p<.43?0:p<.73?1:p<.93?2:3;
 }
 function newLife(previous){
 return {
-version:2,generation:previous?previous.generation+1:1,
+version:3,generation:previous?previous.generation+1:1,
 marks:previous?previous.marks:0,lives:previous?previous.lives:0,
 ascensions:previous?previous.ascensions:0,
 history:previous?previous.history.slice(0,8):[],
@@ -214,13 +225,13 @@ updated:Date.now()
 function load(){
 try{
 const x=JSON.parse(localStorage.getItem(SAVE_KEY));
-if(!x||![1,2].includes(x.version)||!Array.isArray(x.history)||!Array.isArray(x.journal)||
+if(!x||![1,2,3].includes(x.version)||!Array.isArray(x.history)||!Array.isArray(x.journal)||
 !Number.isInteger(x.generation)||x.generation<1||
 !Number.isInteger(x.root)||x.root<0||x.root>=ROOTS.length||
 !Number.isInteger(x.realm)||x.realm<0||
 x.realm>=(x.version===1?OLD_REALM_MAP.length:REALMS.length)||
 !["age","qi","herbs","stones","pills","marks","lives","ascensions","updated"].every(k=>Number.isFinite(x[k])&&x[k]>=0)||
-!["cultivate","gather"].includes(x.mode)||
+!["cultivate","gather","burn"].includes(x.mode)||
 typeof x.buff!=="boolean"||typeof x.dead!=="boolean"||typeof x.ascended!=="boolean"||
 typeof x.cause!=="string")return null;
 x.journal=x.journal.filter(z=>typeof z==="string");
@@ -236,6 +247,7 @@ if(x.version===1){
   }
   x.version=2;
 }
+if(x.version===2) x.version=3;
 return x;
 }catch{return null;}
 }
@@ -245,15 +257,26 @@ game.journal.unshift(Math.floor(game.age/YEAR)+"岁 · "+message);
 }
 function limit(){return LIMITS[game.realm];}
 function cost(){return COSTS[game.realm];}
-function pace(){return (5+game.realm*2.8)*ROOTS[game.root].speed*(1+Math.min(game.marks,80)*.04);}
+function art(){return ARTS.filter(a=>game.realm>=a.level).at(-1);}
+function brewChance(){return game.realm>=6?.9:.8;}
+function breakthroughYears(){return MAJOR_GATES.has(game.realm)?5+Math.floor(game.realm/6):1;}
+function remainSeconds(){
+  return limit()===Infinity?Infinity:Math.max(0,Math.floor((limit()*YEAR-game.age)/DAYS_PER_TICK));
+}
+function pace(){return (5+game.realm*2.8)*ROOTS[game.root].speed*
+  (1+Math.min(game.marks,80)*.04)*(game.realm>=3?1.3:1)*
+  (game.realm>=9?1.25:1);
+}
 function probability(){
 const level=game.realm;
 const gate=MAJOR_GATES.has(level);
 const rank=[9,12,15,18,21,24,27,30,31].indexOf(level);
 const base=level===0?.98:gate?Math.max(.36,.69-rank*.039):level<9?.91-level*.012:.90;
-const old=game.age/YEAR>limit()*.85?.08:0;
+const ageRatio=game.age/(limit()*YEAR);
+const old=ageRatio>.65?Math.min(.28,(ageRatio-.65)*.8):0;
 return Math.max(.1,Math.min(.99,base+ROOTS[game.root].luck+
-Math.min(game.marks,25)*.012+(game.buff?.19:0)-old));
+Math.min(game.marks,25)*.012+(game.buff?.19:0)+
+(game.realm>=16?.06:0)-old));
 }
 function value(n){return Math.floor(n).toLocaleString("zh-CN");}
 function die(reason){
@@ -274,18 +297,39 @@ note("九重天劫散尽。天门大开，此世证得长生。");
 }
 function day(){
 if(game.dead||game.ascended)return;
-game.age++;
-if(game.age>=limit()*YEAR){die("寿元耗尽，坐化于山中");return;}
+const priorAge=game.age;
+game.age+=DAYS_PER_TICK;
 if(game.mode==="cultivate"){
-game.qi+=pace();
+  game.qi+=pace();
+}else if(game.mode==="burn"){
+  game.qi+=pace()*4;
+  game.age+=DAYS_PER_TICK*(game.realm>=13?1:2);
+  if(Math.random()<.014){
+    game.age+=3*YEAR;
+    note("燃寿冲脉失控，经脉反噬，平白折损三年寿元。");
+    if(game.realm>=9&&Math.random()<.12)die("燃寿反噬，神魂俱灭");
+  }
 }else{
-game.qi+=pace()*.12;
-if(Math.random()<.38)game.herbs++;
-if(Math.random()<.085)game.stones++;
-if(Math.random()<.0015){
-game.age+=18;note("入山遇险，负伤而归，折寿十八日。");
-if(game.age>=limit()*YEAR)die("采药遇险，重伤坐化");
+  game.qi+=pace()*.12;
+  if(Math.random()<(game.realm>=10?.62:.38))game.herbs++;
+  if(Math.random()<(game.realm>=10?.15:.085))game.stones++;
+  if(Math.random()<.008){
+    game.age+=2*YEAR;
+    note("入山遇险，负伤而归，折寿两年。");
+    if(game.realm>=9&&Math.random()<.07)die("深山遇妖，重伤不治");
+  }
 }
+if(game.dead)return;
+if(game.age>=limit()*YEAR){
+  die("寿元耗尽，坐化于山中");
+  return;
+}
+const before=Math.floor(priorAge/YEAR),after=Math.floor(game.age/YEAR);
+if(before<Math.floor(limit()-.0-15)&&after>=Math.floor(limit()-15)){
+  note("寿数将尽，只余十五载。是求稳积累，还是冒险一搏？");
+}
+if(before<Math.floor(limit()-5)&&after>=Math.floor(limit()-5)){
+  note("天人五衰，余寿已不足五载。");
 }
 game.qi=Math.min(game.qi,cost());
 }
@@ -293,7 +337,9 @@ function advance(seconds){for(let i=0;i<seconds&&!game.dead&&!game.ascended;i++)
 function redrawSave(){game.updated=Date.now();persist();render();}
 function choose(mode){
 if(game.dead||game.ascended)return;
-if(game.mode!==mode){game.mode=mode;note(mode==="cultivate"?"归洞府闭关吐纳。":"入深山采药探灵矿。");}
+if(game.mode!==mode){game.mode=mode;note(mode==="cultivate"?"归洞府闭关吐纳。":
+mode==="burn"?"焚烧寿元强行冲脉，修为暴涨，亦有心魔反噬之险。":
+"入深山采药探灵矿。");}
 redrawSave();
 }
 function brew(){
@@ -301,7 +347,7 @@ if(game.dead||game.ascended)return;
 if(game.herbs<5||game.stones<2){note("灵草或灵石不足，无法开炉。");}
 else{
 game.herbs-=5;game.stones-=2;
-if(Math.random()<.8){game.pills++;note("丹炉清鸣，炼出护脉丹一枚。");}
+if(Math.random()<brewChance()){game.pills++;note("丹炉清鸣，炼出护脉丹一枚。");}
 else note("炉火失控，药材尽毁，丹药未成。");
 }
 redrawSave();
@@ -317,18 +363,35 @@ function breakRealm(){
 if(game.dead||game.ascended)return;
 if(game.qi<cost()){note("修为未满，尚不能破境。");redrawSave();return;}
 const level=game.realm,odds=probability();
+const formerArt=art().name, beforeRate=pace();
+const timeCost=breakthroughYears();
 game.buff=false;game.qi=0;
+game.age+=timeCost*YEAR;
+if(game.age>=limit()*YEAR){
+  die("冲关耗尽最后寿元，未能见到新天地");
+  redrawSave();
+  return;
+}
 if(Math.random()<odds){
 if(level===REALMS.length-2)fly();
-else{game.realm++;note("冲关成功，已入"+REALMS[game.realm]+
-(level===0||MAJOR_GATES.has(level)?"。寿元上限得以提升。":"。"));}
+else{
+  game.realm++;
+  note("冲关成功，已入"+REALMS[game.realm]+"。"+
+    "吐纳修为每日 "+beforeRate.toFixed(1)+" → "+pace().toFixed(1)+
+    "，寿元上限 "+LIMITS[level]+" → "+limit()+" 岁。");
+  if(art().name!==formerArt){
+    note("悟得"+art().name+"："+art().effect+"。");
+  }
+}
 }else{
 const gateRank=[9,12,15,18,21,24,27,30,31].indexOf(level);
 const deathRisk=gateRank<0?0:Math.min(.95,.12+gateRank*.09);
 if(Math.random()<deathRisk)die(level===REALMS.length-2?"飞升天劫之下，身死道消":"冲击"+REALMS[level+1]+"失败，经脉尽毁");
 else{
-game.age+=(level<9?26:180)+Math.floor(Math.random()*120);
-note("冲关失败，修为尽散，经脉受损，折损寿元。");
+const lost=MAJOR_GATES.has(level)?8+Math.floor(Math.random()*13):
+  2+Math.floor(Math.random()*3);
+game.age+=lost*YEAR;
+note("冲关失败，修为尽散，经脉受损，额外折损"+lost+"年寿元。");
 if(game.age>=limit()*YEAR)die("冲关反噬，寿元耗尽");
 }
 }
@@ -347,16 +410,25 @@ $("generation").textContent="第"+game.generation+"世";
 $("root").textContent=ROOTS[game.root].name;
 $("realm").textContent=REALMS[game.realm];
 $("life").textContent=(game.age/YEAR).toFixed(1)+" / "+(limit()===Infinity?"无尽":limit())+" 岁";
+const remaining=remainSeconds();
+$("life-clock").textContent="寿元 · "+(remaining===Infinity?"长生":"剩约 "+remaining+" 秒");
+$("life-clock").title="剩余寿元按当前正常修炼方式估算；燃寿、受伤与冲关会更快消耗寿元。";
 $("qi").textContent=game.ascended?"此世圆满":value(game.qi)+" / "+value(cost());
 $("resources").textContent=value(game.herbs)+" / "+value(game.stones);
 $("pills").textContent=value(game.pills)+" / "+(game.buff?"已生效":"无");
-$("action").textContent=over?(game.ascended?"飞升圆满":"身死道消"):game.mode==="cultivate"?"洞府闭关":"入山采药";
+$("action").textContent=over?(game.ascended?"飞升圆满":"身死道消"):
+game.mode==="cultivate"?"洞府闭关":game.mode==="burn"?"燃寿冲脉":"入山采药";
 $("cultivate").setAttribute("aria-pressed",String(game.mode==="cultivate"));
 $("gather").setAttribute("aria-pressed",String(game.mode==="gather"));
+$("burn").setAttribute("aria-pressed",String(game.mode==="burn"));
 $("rate").textContent=game.mode==="cultivate"?
-"每天约得修为 "+pace().toFixed(1)+"；修为满后停在命关，等待你亲自突破。":
-"每天少量修炼，同时有机会获得灵草和灵石。入山可能负伤折寿。";
-for(const id of ["cultivate","gather","brew","pill"])$(id).disabled=over;
+"闭关：每季修为 +"+pace().toFixed(1)+"，耗时约三个月。":
+game.mode==="burn"?"燃寿：每季修为 +"+(pace()*4).toFixed(1)+
+"，每次耗寿约"+(game.realm>=13?6:9)+"个月，可能反噬。":
+"采药：每季获得草药/灵石的机缘，受伤可能折寿两年。";
+$("insight").textContent="当前道法："+art().name+"（"+art().effect+"）"+
+" · 炼丹成功率 "+Math.round(brewChance()*100)+"%";
+for(const id of ["cultivate","gather","burn","brew","pill"])$(id).disabled=over;
 $("brew").disabled=over||game.herbs<5||game.stones<2;
 $("pill").disabled=over||game.buff||game.pills<1;
 $("break").hidden=over;
@@ -371,11 +443,11 @@ $("gate").textContent="此世终局："+game.cause+"。";
 $("danger").textContent="转世将失去灵根、修为、丹药和灵石，仅保留道痕与前世记载。";
 $("rebirth").textContent="转世重修";
 }else{
-$("gate").textContent="下一命关："+REALMS[game.realm+1]+"；需要 "+value(cost())+
-" 修为；当前成功率 "+(probability()*100).toFixed(1)+"%。";
+$("gate").textContent="冲击"+REALMS[game.realm+1]+"：需修为 "+value(cost())+
+"，胜率 "+(probability()*100).toFixed(1)+"%，耗寿 "+breakthroughYears()+" 年。";
 $("danger").textContent=MAJOR_GATES.has(game.realm)?
-"大境界命关，失败可能身死。护脉丹可增胜算，却不能保证成功。":
-"小境界冲关失败会损失修为和寿元。";
+"大境界命关，失败可能身死，或额外折损八至二十年。":
+"小境界失败额外折寿二至四年。服丹可提高胜算。";
 }
 $("legacy").textContent="道痕 "+value(game.marks)+" · 完整人生 "+value(game.lives)+" 世 · 飞升 "+
 value(game.ascensions)+" 次。"+(game.history.length?"前世："+game.history[0]:"尚无前世记录。");
@@ -397,6 +469,7 @@ document.documentElement.dataset.ready="true";
 let renderedJournal=-1,renderedFirst=null,renderedGeneration=null;
 $("cultivate").addEventListener("click",()=>choose("cultivate"));
 $("gather").addEventListener("click",()=>choose("gather"));
+$("burn").addEventListener("click",()=>choose("burn"));
 $("brew").addEventListener("click",brew);
 $("pill").addEventListener("click",takePill);
 $("break").addEventListener("click",breakRealm);
