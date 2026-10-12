@@ -200,6 +200,7 @@ def test(browser: Browser, url: str) -> None:
         "return document.getElementById('realm').textContent;"
     ), breakthrough
     assert any("筑基初期" in line for line in breakthrough["journal"]), breakthrough
+    assert any("灵识探脉" in line for line in breakthrough["journal"]), breakthrough
 
     # Within Foundation: early -> middle -> late -> Core, all visible stages.
     for old_realm, target, qi in [(10, "筑基中期", 900),
