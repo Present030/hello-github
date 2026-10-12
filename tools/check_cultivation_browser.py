@@ -37,7 +37,7 @@ def layout(browser: Browser, width: int, height: int) -> None:
         "params": {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": True},
     })
     state = browser.js("""
-        const items = ["cultivate","gather","brew","pill","break"];
+        const items = ["cultivate","gather","burn","brew","pill","break"];
         const allVisible = items.every(id => {
             const node = document.getElementById(id), r = node.getBoundingClientRect();
             return !node.hidden && r.width > 0 && r.height > 0 &&
@@ -124,6 +124,61 @@ def test(browser: Browser, url: str) -> None:
     assert advanced["qi"] >= 20 and advanced["realm"] == 0, advanced
     assert browser.js('return !document.getElementById("offline").hidden;')
 
+    # v2 saves upgrade in place (same key, no loss of realm, resources or notes).
+    overwrite(browser, {"version": 2, "realm": 3, "qi": 42,
+                        "age": 30 * 365, "journal": lifetime[:]})
+    browser.open(url)
+    upgraded = saved(browser)
+    assert upgraded["version"] == 3 and upgraded["realm"] == 3, upgraded
+    assert upgraded["qi"] >= 42 and len(upgraded["journal"]) == 70, upgraded
+
+    # One second is a season now; a four/five-second catchup consumes >1 year.
+    overwrite(browser, {"mode": "cultivate", "age": 18 * 365, "qi": 0})
+    browser.js("""
+        const x=JSON.parse(localStorage.getItem(arguments[0]));
+        x.updated=Date.now()-5500;
+        localStorage.setItem(arguments[0], JSON.stringify(x));
+    """, KEY)
+    browser.open(url)
+    faster_clock = saved(browser)
+    assert faster_clock["age"] >= 18 * 365 + 5 * 90, faster_clock
+    assert "剩约" in browser.js("return document.getElementById('life-clock').textContent;")
+
+    # Early breakthrough grants actual technique bonuses, not only extra lifespan.
+    overwrite(browser, {"realm": 2, "qi": 91, "age": 20 * 365, "mode": "cultivate"})
+    browser.open(url)
+    browser.js("Math.random=()=>0; document.getElementById('break').click();")
+    unlocked = saved(browser)
+    assert unlocked["realm"] == 3 and unlocked["age"] >= 21 * 365, unlocked
+    assert any("归元诀" in e for e in unlocked["journal"]), unlocked
+    assert "归元诀" in browser.js("return document.getElementById('insight').textContent;")
+
+    # New burn cultivation gains fourfold qi at a larger and uncertain life cost.
+    overwrite(browser, {"realm": 2, "qi": 0, "age": 20 * 365,
+                        "mode": "cultivate"})
+    browser.open(url)
+    browser.js('document.getElementById("burn").click();')
+    assert saved(browser)["mode"] == "burn"
+    browser.js("""
+        const x=JSON.parse(localStorage.getItem(arguments[0]));
+        x.qi=0; x.updated=Date.now()-5500;
+        localStorage.setItem(arguments[0], JSON.stringify(x));
+    """, KEY)
+    browser.open(url)
+    burned = saved(browser)
+    assert burned["qi"] >= 20 * 5, burned
+    assert burned["age"] >= 20 * 365 + 5 * 270, burned
+
+    # End-of-life pressure: major cultivation consumes multiple whole years.
+    overwrite(browser, {"realm": 9, "qi": 600, "age": 99 * 365 - 5,
+                        "mode": "cultivate", "dead": False})
+    browser.open(url)
+    browser.js("Math.random=()=>0; document.getElementById('break').click();")
+    exhausted = saved(browser)
+    assert exhausted["dead"] and "冲关耗尽" in exhausted["cause"], exhausted
+    browser.js('document.getElementById("rebirth").click();')
+    assert not saved(browser)["dead"]
+
     # Brewing, preparation, normal and major breakthroughs.
     overwrite(browser, {"herbs": 5, "stones": 2, "mode": "cultivate"})
     browser.open(url)
@@ -136,6 +191,7 @@ def test(browser: Browser, url: str) -> None:
     assert potion["buff"] and potion["pills"] == 0, potion
 
     # Start at Qi 9 and cross to Foundation Establishment early stage.
+    # Update to the new urgency: the breakthrough itself takes multiple years.
     overwrite(browser, {"realm": 9, "qi": 600, "buff": False, "age": 29 * 365})
     browser.open(url)
     browser.js("Math.random = () => 0; document.getElementById('break').click();")
@@ -196,12 +252,12 @@ def test(browser: Browser, url: str) -> None:
                             "journal": lifetime[:]})
         browser.open(url)
         migrated = saved(browser)
-        assert migrated["version"] == 2 and migrated["realm"] == expected_realm, migrated
+        assert migrated["version"] == 3 and migrated["realm"] == expected_realm, migrated
         assert abs(migrated["qi"] - expected_qi) < 1, migrated
         assert len(migrated["journal"]) == len(lifetime), migrated
         assert browser.js("return document.getElementById('realm').textContent;") == display
 
-    print("PASS: always-visible full-life log, common actions, 4 viewports, staged realms, v1->v2 migration, death, pills and tribulation")
+    print("PASS: game UI, full journal, accelerated lifespan, rewarded breakthroughs, burn-mode risk, v1/v2 migration, death and tribulation")
 
 
 def main() -> int:
