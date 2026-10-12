@@ -1,4 +1,4 @@
-"""Headless Chrome smoke tests for the text-only cultivation idle game."""
+"""Real-Chrome regression for one-screen text cultivation, journal and save migration."""
 from __future__ import annotations
 
 import argparse
@@ -10,154 +10,198 @@ from threading import Thread
 from check_site_compatibility import Browser
 
 
+KEY = "hello-github-text-cultivation-v1"
+
+
 class SilentHandler(SimpleHTTPRequestHandler):
     def log_message(self, *_args: object) -> None:
         pass
 
 
+def saved(browser: Browser):
+    return browser.js("return JSON.parse(localStorage.getItem(arguments[0]));", KEY)
+
+
+def overwrite(browser: Browser, fields: dict) -> None:
+    browser.js("""
+        const obj = JSON.parse(localStorage.getItem(arguments[0]));
+        Object.assign(obj, arguments[1]);
+        obj.updated = Date.now();
+        localStorage.setItem(arguments[0], JSON.stringify(obj));
+    """, KEY, fields)
+
+
+def layout(browser: Browser, width: int, height: int) -> None:
+    browser.api("POST", f"/session/{browser.session}/goog/cdp/execute", {
+        "cmd": "Emulation.setDeviceMetricsOverride",
+        "params": {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": True},
+    })
+    state = browser.js("""
+        const items = ["cultivate","gather","brew","pill","break"];
+        const allVisible = items.every(id => {
+            const node = document.getElementById(id), r = node.getBoundingClientRect();
+            return !node.hidden && r.width > 0 && r.height > 0 &&
+                r.top >= -2 && r.bottom <= innerHeight + 2;
+        });
+        const history = document.getElementById("journal");
+        const region = history.getBoundingClientRect();
+        return {
+            width: innerWidth, height: innerHeight,
+            htmlHeight: document.documentElement.scrollHeight,
+            bodyHeight: document.body.scrollHeight,
+            htmlWidth: document.documentElement.scrollWidth,
+            visibleButtons: allVisible,
+            historyVisible: region.height > 38 && region.top >= -2 &&
+                region.bottom <= innerHeight + 2,
+            logParent: history.parentElement.className,
+            hiddenTabs: document.querySelectorAll('[role="tab"]').length
+        };
+    """)
+    assert (state["width"], state["height"]) == (width, height), state
+    assert state["htmlHeight"] <= height + 2 and state["bodyHeight"] <= height + 2, state
+    assert state["htmlWidth"] <= width + 2, state
+    assert state["visibleButtons"] and state["historyVisible"], state
+    assert state["logParent"] == "chronicle" and state["hiddenTabs"] == 0, state
+
+
 def test(browser: Browser, url: str) -> None:
     browser.open(url)
-    ready = browser.js("""
+    initial = browser.js("""
         return {
             ready: document.documentElement.dataset.ready,
-            title: document.title,
-            graphics: document.querySelectorAll("img,svg,canvas,video").length,
-            overflow: document.documentElement.scrollWidth > innerWidth + 2,
-            realm: document.getElementById("realm").textContent
+            realm: document.getElementById("realm").textContent,
+            graphics: document.querySelectorAll("canvas,svg,img,video").length
         };
     """)
-    assert ready["ready"] == "true", ready
-    assert "山中问道" in ready["title"], ready
-    assert ready["graphics"] == 0 and not ready["overflow"], ready
-    assert ready["realm"] == "凡人", ready
-
-    # One-screen layout: page itself must not scroll at phone sizes;
-    # only a tab panel may scroll internally when text becomes long.
-    def layout(expected_width: int, expected_height: int) -> None:
-        browser.api("POST", f"/session/{browser.session}/goog/cdp/execute", {
-            "cmd": "Emulation.setDeviceMetricsOverride",
-            "params": {"width": expected_width, "height": expected_height,
-                       "deviceScaleFactor": 1, "mobile": True},
-        })
-        state = browser.js("""
-            const active = document.querySelector('.tabs [aria-selected="true"]');
-            return {
-                width: innerWidth, height: innerHeight,
-                rootHeight: document.documentElement.scrollHeight,
-                bodyHeight: document.body.scrollHeight,
-                rootWidth: document.documentElement.scrollWidth,
-                active: active?.dataset.panel,
-                tabs: document.querySelectorAll('[role="tab"]').length,
-                visiblePanels: [...document.querySelectorAll('[role="tabpanel"]')]
-                  .filter(panel => !panel.hidden).length,
-            };
-        """)
-        assert state["width"] == expected_width and state["height"] == expected_height, state
-        assert state["rootHeight"] <= state["height"] + 2, state
-        assert state["bodyHeight"] <= state["height"] + 2, state
-        assert state["rootWidth"] <= state["width"] + 2, state
-        assert state["tabs"] == 4 and state["visiblePanels"] == 1, state
-
+    assert initial == {"ready": "true", "realm": "凡人", "graphics": 0}, initial
     for width, height in [(320, 568), (375, 667), (768, 700), (1280, 800)]:
-        layout(width, height)
+        layout(browser, width, height)
 
-    browser.js('document.getElementById("tab-journal").click();')
-    panel_state = browser.js("""
+    # Long journals must always be visible and must retain every event in v2.
+    lifetime = [f"第 {i:03d} 条 · 修炼纪事" for i in range(70)]
+    overwrite(browser, {"journal": lifetime, "version": 2})
+    browser.open(url)
+    journal = browser.js("""
+        const list = document.getElementById("journal");
+        const entries = JSON.parse(localStorage.getItem(arguments[0])).journal;
         return {
-            selected: document.getElementById("tab-journal").getAttribute("aria-selected"),
-            shown: !document.getElementById("panel-journal").hidden,
-            practiceHidden: document.getElementById("panel-practice").hidden
+            stored:entries.length, rendered:list.children.length,
+            first:list.firstElementChild.textContent, last:list.lastElementChild.textContent,
+            count:document.getElementById("journal-count").textContent,
+            scrollable:list.scrollHeight > list.clientHeight
         };
-    """)
-    assert panel_state == {"selected": "true", "shown": True, "practiceHidden": True}, panel_state
-    browser.js('document.getElementById("tab-practice").click();')
-    assert browser.js('return !document.getElementById("panel-practice").hidden;')
+    """, KEY)
+    assert journal["stored"] == journal["rendered"] == 70, journal
+    assert journal["first"] == lifetime[0] and journal["last"] == lifetime[-1], journal
+    assert journal["scrollable"] and "70" in journal["count"], journal
 
+    # Reading older entries must not jump to the top on every timer update.
+    browser.js('document.getElementById("journal").scrollTop = 150;')
+    scroll_before = browser.js('return document.getElementById("journal").scrollTop;')
+    assert scroll_before > 0
     browser.js('document.getElementById("gather").click();')
-    mode = browser.js("""
-        return JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1")).mode;
-    """)
-    assert mode == "gather", mode
-
-    # A five-second absence grants cultivation but does not auto-break through.
-    browser.js("""
-        const key = "hello-github-text-cultivation-v1";
-        const save = JSON.parse(localStorage.getItem(key));
-        save.mode = "cultivate";
-        save.qi = 0;
-        save.updated = Date.now() - 5500;
-        localStorage.setItem(key, JSON.stringify(save));
-    """)
+    after = browser.js("""
+        const list = document.getElementById("journal");
+        const s = JSON.parse(localStorage.getItem(arguments[0]));
+        return {stored:s.journal.length, count:list.children.length,
+            first:list.firstElementChild.textContent, scroll:list.scrollTop,
+            visible:!list.hidden};
+    """, KEY)
+    assert after["stored"] == after["count"] == 71 and after["visible"], after
+    assert after["scroll"] >= scroll_before, after
     browser.open(url)
-    progress = browser.js("""
-        const x = JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
-        return {qi:x.qi, realm:x.realm, offline:!document.getElementById("offline").hidden};
-    """)
-    assert progress["qi"] >= 20 and progress["realm"] == 0 and progress["offline"], progress
+    assert len(saved(browser)["journal"]) == 71
 
-    # Brewing and protective medicine use actual local resources.
+    # Real unattended cultivation resumes after a simulated offline interval.
+    overwrite(browser, {"mode": "cultivate", "qi": 0})
     browser.js("""
-        const key = "hello-github-text-cultivation-v1";
-        const save = JSON.parse(localStorage.getItem(key));
-        save.herbs = 5; save.stones = 2; save.updated = Date.now();
-        localStorage.setItem(key, JSON.stringify(save));
-    """)
+        const x = JSON.parse(localStorage.getItem(arguments[0]));
+        x.updated = Date.now() - 5500;
+        localStorage.setItem(arguments[0], JSON.stringify(x));
+    """, KEY)
     browser.open(url)
-    result = browser.js("""
+    advanced = saved(browser)
+    assert advanced["qi"] >= 20 and advanced["realm"] == 0, advanced
+    assert browser.js('return !document.getElementById("offline").hidden;')
+
+    # Brewing, preparation, normal and major breakthroughs.
+    overwrite(browser, {"herbs": 5, "stones": 2, "mode": "cultivate"})
+    browser.open(url)
+    potion = browser.js("""
         Math.random = () => 0;
         document.getElementById("brew").click();
         document.getElementById("pill").click();
-        return JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
-    """)
-    assert result["buff"] is True and result["pills"] == 0, result
+        return JSON.parse(localStorage.getItem(arguments[0]));
+    """, KEY)
+    assert potion["buff"] and potion["pills"] == 0, potion
 
-    # Mortality is real: offline lifetime depletion stops simulation and
-    # makes reincarnation possible, without automatically reincarnating.
-    browser.js("""
-        const key = "hello-github-text-cultivation-v1";
-        const save = JSON.parse(localStorage.getItem(key));
-        save.realm = 0; save.age = 75*365 - 2;
-        save.qi = 0; save.updated = Date.now() - 5500;
-        localStorage.setItem(key, JSON.stringify(save));
-    """)
+    # Start at Qi 9 and cross to Foundation Establishment early stage.
+    overwrite(browser, {"realm": 9, "qi": 600, "buff": False, "age": 29 * 365})
     browser.open(url)
-    death = browser.js("""
-        const x = JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
-        return {dead:x.dead, generation:x.generation, marks:x.marks,
-          rebirth:!document.getElementById("rebirth").hidden};
-    """)
-    assert death["dead"] and death["rebirth"] and death["generation"] == 1, death
-    assert browser.js('return !document.getElementById("panel-fate").hidden;'), "Fatal outcome must open breakthrough tab"
-    browser.js('document.getElementById("rebirth").click();')
-    reborn = browser.js("""
-        const x = JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
-        return {dead:x.dead, generation:x.generation, realm:x.realm,
-          marks:x.marks, qi:x.qi};
-    """)
-    assert not reborn["dead"] and reborn["generation"] == 2, reborn
-    assert reborn["marks"] >= 1 and reborn["realm"] == 0 and reborn["qi"] == 0, reborn
-    assert browser.js('return !document.getElementById("panel-practice").hidden;'), "Rebirth should return to practice tab"
+    browser.js("Math.random = () => 0; document.getElementById('break').click();")
+    breakthrough = saved(browser)
+    assert breakthrough["realm"] == 10 and "筑基初期" in browser.js(
+        "return document.getElementById('realm').textContent;"
+    ), breakthrough
+    assert breakthrough["journal"][0].find("筑基初期") >= 0, breakthrough
 
-    # A deliberate high-realm breakthrough can be fatal.
+    # Within Foundation: early -> middle -> late -> Core, all visible stages.
+    for old_realm, target, qi in [(10, "筑基中期", 900),
+                                  (11, "筑基后期", 1250),
+                                  (12, "金丹初期", 1700)]:
+        overwrite(browser, {"realm": old_realm, "qi": qi})
+        browser.open(url)
+        browser.js("Math.random = () => 0; document.getElementById('break').click();")
+        assert browser.js("return document.getElementById('realm').textContent;") == target
+
+    # A death due to aging is final until the player explicitly reincarnates.
+    overwrite(browser, {"realm": 0, "age": 75 * 365 - 2, "qi": 0})
     browser.js("""
-        const key = "hello-github-text-cultivation-v1";
-        const x = JSON.parse(localStorage.getItem(key));
-        x.realm = 14; x.qi = 22000; x.age = 100*365;
-        x.updated = Date.now(); x.dead = false; x.ascended = false; x.buff = false;
-        localStorage.setItem(key, JSON.stringify(x));
-    """)
+        const x=JSON.parse(localStorage.getItem(arguments[0]));
+        x.updated=Date.now()-5500;
+        localStorage.setItem(arguments[0], JSON.stringify(x));
+    """, KEY)
+    browser.open(url)
+    death = saved(browser)
+    assert death["dead"] and death["generation"] == 1, death
+    assert browser.js('return !document.getElementById("rebirth").hidden;')
+    assert browser.js('return document.getElementById("journal").children.length;') >= 70
+    browser.js('document.getElementById("rebirth").click();')
+    reborn = saved(browser)
+    assert not reborn["dead"] and reborn["generation"] == 2 and reborn["realm"] == 0
+    assert reborn["marks"] >= 1 and reborn["qi"] == 0, reborn
+
+    # High-realm tribulation can still be fatal.
+    overwrite(browser, {"realm": 31, "qi": 94000, "age": 100 * 365,
+                        "buff": False, "dead": False, "ascended": False})
     browser.open(url)
     outcome = browser.js("""
-        const values = [0.99, 0];
-        Math.random = () => values.length ? values.shift() : 0;
+        const values=[0.99,0];
+        Math.random=()=>values.length?values.shift():0;
         document.getElementById("break").click();
-        const x = JSON.parse(localStorage.getItem("hello-github-text-cultivation-v1"));
-        return {dead:x.dead, cause:x.cause, rebirth:!document.getElementById("rebirth").hidden};
-    """)
-    assert outcome["dead"] and outcome["rebirth"] and "天劫" in outcome["cause"], outcome
-    assert browser.js('return !document.getElementById("panel-fate").hidden;')
+        return JSON.parse(localStorage.getItem(arguments[0]));
+    """, KEY)
+    assert outcome["dead"] and "天劫" in outcome["cause"], outcome
 
-    print("PASS: text cultivation no page scrollbar 320/375/768/1280, tabs, offline, pills, death, reincarnation, tribulation")
+    # Existing v1 saves retain attained major stage and fractional cultivation.
+    for old_realm, expected_realm, old_qi, expected_qi, display in [
+        (10, 10, 450, 450, "筑基初期"),
+        (11, 13, 1350, 1350, "金丹初期"),
+        (12, 16, 2850, 2850, "元婴初期"),
+        (13, 19, 5500, 5500, "化神初期"),
+        (14, 31, 11000, 47000, "渡劫"),
+    ]:
+        overwrite(browser, {"version": 1, "realm": old_realm, "qi": old_qi,
+                            "dead": False, "ascended": False, "age": 75 * 365,
+                            "journal": lifetime[:]})
+        browser.open(url)
+        migrated = saved(browser)
+        assert migrated["version"] == 2 and migrated["realm"] == expected_realm, migrated
+        assert abs(migrated["qi"] - expected_qi) < 1, migrated
+        assert len(migrated["journal"]) == len(lifetime), migrated
+        assert browser.js("return document.getElementById('realm').textContent;") == display
+
+    print("PASS: always-visible full-life log, common actions, 4 viewports, staged realms, v1->v2 migration, death, pills and tribulation")
 
 
 def main() -> int:
@@ -166,11 +210,9 @@ def main() -> int:
     args = parser.parse_args()
     source = args.site.resolve()
     if not source.is_file():
-        raise AssertionError("Text cultivation was not included in the Pages output")
-    server = ThreadingHTTPServer(
-        ("127.0.0.1", 0),
-        partial(SilentHandler, directory=str(source.parent)),
-    )
+        raise AssertionError("Text cultivation was not included in published Pages output")
+    server = ThreadingHTTPServer(("127.0.0.1", 0),
+        partial(SilentHandler, directory=str(source.parent)))
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
     try:
