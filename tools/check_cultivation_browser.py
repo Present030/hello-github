@@ -223,7 +223,8 @@ def test(browser: Browser, url: str) -> None:
     death = saved(browser)
     assert death["dead"] and death["generation"] == previous_generation, death
     assert browser.js('return !document.getElementById("rebirth").hidden;')
-    assert browser.js('return document.getElementById("journal").children.length;') >= 70
+    assert any("寿元耗尽" in entry for entry in death["journal"]), death
+    assert browser.js('return document.getElementById("journal").children.length;') == len(death["journal"])
     browser.js('document.getElementById("rebirth").click();')
     reborn = saved(browser)
     assert not reborn["dead"] and reborn["generation"] == previous_generation + 1 and reborn["realm"] == 0
