@@ -34,7 +34,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > latest-release.json
           python tools/audit_state.py --release-json latest-release.json
 
-      - name: Verify source, build, and Release agree
+      - name: Verify current source and release-tag build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,12 +57,21 @@ jobs:
           gh release download "$tag"             --repo "$GITHUB_REPOSITORY"             --pattern "hello-github.pyz"             --dir release
 
           test "$(python release/hello-github.pyz --version)" = "$version"
-          cmp rebuilt/hello-github.pyz release/hello-github.pyz
+
+          # Current main may include unreleased changes. Compare the published
+          # asset only with source from its own immutable release commit.
+          git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
+          release_target="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.target_commitish')"
+          test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$release_target"
+          git worktree add --detach "$RUNNER_TEMP/release-source" "refs/tags/$tag"
+          python "$RUNNER_TEMP/release-source/tools/build_zipapp.py" \
+            --output rebuilt/release-hello-github.pyz
+          cmp rebuilt/release-hello-github.pyz release/hello-github.pyz
 
           python release/hello-github.pyz --json > released-runtime.json
           VERSION_EXPECTED="$version" python -c "import json, os; r=json.load(open('released-runtime.json', encoding='utf-8')); assert r['version'] == os.environ['VERSION_EXPECTED']"
 
-          echo "PASS: source, rebuilt artifact, and latest Release agree at $tag"
+          echo "PASS: current source checks and $tag release-source rebuild agree"
 
       - name: Download and validate all five formal Release assets
         shell: bash
