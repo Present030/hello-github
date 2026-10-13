@@ -674,6 +674,23 @@ time, and does not substitute for the next real VERSION upgrade propagation
 check (ROADMAP 07). The actual scheduled Monday run remains a future
 trigger; CI and a push-triggered run of `health-check` validate this code.
 
+### Weekly source/Release comparison boundary (2026-10-13)
+
+The [2026-10-12 scheduled health-check](https://github.com/Present030/hello-github/actions/runs/38239197404)
+failed because it byte-compared a zipapp rebuilt from current `main`
+against the older published `v0.3.0` asset. The `--field` CLI change was
+merged after that Release without a version bump, so different bytes were
+expected. The failure was recorded in [Issue #126](https://github.com/Present030/hello-github/issues/126).
+
+The health-check now tests and builds current `main` independently, then
+fetches the formal Release's Git tag, requires its resolved commit to match
+Release `target_commitish`, and rebuilds the published zipapp from that
+tag's source before a byte comparison. The subsequent five-asset digest,
+attestation, and offline-recovery checks remain unchanged. This deliberately
+does **not** claim unreleased `main` features exist in the old Release or
+modify `VERSION`, the tag, or published assets. The first successful
+post-merge run is required to confirm the live workflow and close Issue #126.
+
 ### Critical workflow incident alerts and recovery closure (2026-10-08)
 
 ROADMAP item 10 was implemented by [PR #97](https://github.com/Present030/hello-github/pull/97)
